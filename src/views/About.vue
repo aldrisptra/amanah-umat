@@ -1,7 +1,43 @@
-```vue
+<script setup>
+import { onMounted, ref } from "vue";
+import { supabase } from "../lib/supabase";
+
+const about = ref(null);
+const loadingAbout = ref(true);
+
+const getAbout = async () => {
+  const { data, error } = await supabase
+    .from("about")
+    .select("*")
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  console.log("DATA ABOUT:", data);
+  console.log("ERROR ABOUT:", error);
+
+  if (error) {
+    console.error("Gagal mengambil data tentang kami:", error);
+    loadingAbout.value = false;
+    return;
+  }
+
+  if (data && data.length > 0) {
+    about.value = data[0];
+  }
+
+  loadingAbout.value = false;
+};
+
+onMounted(() => {
+  getAbout();
+});
+</script>
+
 <template>
   <div>
-    <!-- HERO -->
+    <!-- =========================
+         HERO
+    ========================== -->
     <section class="bg-emerald-50">
       <div class="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-24">
         <div class="max-w-3xl">
@@ -14,71 +50,88 @@
           <h1
             class="mt-4 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl"
           >
-            Mengenal Panti Asuhan Amanah Umat
+            Mengenal Panti Asuhan Amanah Umat.
           </h1>
+
+          <p class="mt-6 max-w-2xl text-lg leading-8 text-gray-600">
+            Mengenal lebih dekat tempat kami mendampingi dan membersamai
+            anak-anak Panti Asuhan Amanah Umat.
+          </p>
         </div>
       </div>
     </section>
 
-    <!-- ABOUT -->
+    <!-- =========================
+         ABOUT CONTENT
+    ========================== -->
     <section class="bg-white py-20">
-      <div
-        class="mx-auto grid max-w-7xl items-center gap-12 px-5 lg:grid-cols-2 lg:px-8"
-      >
-        <!-- FOTO -->
-        <div class="overflow-hidden rounded-3xl">
-          <img
-            src="https://images.unsplash.com/photo-1559027615-cd4628902d4a?auto=format&fit=crop&w=1200&q=80"
-            alt="Panti Asuhan Amanah Umat"
-            class="h-[450px] w-full object-cover"
-          />
+      <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <!-- Loading -->
+        <div v-if="loadingAbout" class="py-20 text-center text-gray-500">
+          Memuat informasi...
         </div>
 
-        <!-- DESKRIPSI -->
-        <div>
-          <span
-            class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
-          >
-            Panti Asuhan Amanah Umat
-          </span>
+        <!-- Content -->
+        <div v-else-if="about" class="grid items-center gap-12 lg:grid-cols-2">
+          <!-- IMAGE -->
+          <div class="overflow-hidden rounded-3xl">
+            <img
+              :src="about.image_url"
+              :alt="about.title"
+              class="h-[450px] w-full object-cover"
+            />
+          </div>
 
-          <h2
-            class="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl"
-          >
-            Tempat tumbuh dan berkembang bersama.
-          </h2>
+          <!-- TEXT -->
+          <div>
+            <span
+              class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
+            >
+              Tentang Amanah Umat
+            </span>
 
-          <div class="mt-6 space-y-5 text-base leading-8 text-gray-600">
-            <p>
-              Panti Asuhan Amanah Umat Balikpapan merupakan tempat tinggal dan
-              pembinaan bagi anak-anak yang membutuhkan perhatian, kasih sayang,
-              pendidikan, dan pendampingan.
-            </p>
+            <h2
+              class="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl"
+            >
+              {{ about.title }}
+            </h2>
 
-            <p>
-              Panti Asuhan Amanah Umat hadir sebagai tempat bagi anak-anak untuk
-              tumbuh dan berkembang dalam lingkungan yang aman, nyaman, dan
-              penuh kebersamaan.
-            </p>
-
-            <p>
-              Dalam kesehariannya, anak-anak mengikuti berbagai kegiatan seperti
-              belajar, beribadah, bermain, serta kegiatan lainnya yang mendukung
-              tumbuh kembang dan kehidupan mereka.
-            </p>
-
-            <p>
-              Panti ini didirikan pada
-              <span class="font-semibold text-gray-900"> [Tahun Berdiri] </span>
-              dan berlokasi di
-              <span class="font-semibold text-gray-900">
-                Balikpapan, Kalimantan Timur </span
-              >.
+            <p class="mt-6 whitespace-pre-line leading-8 text-gray-600">
+              {{ about.description }}
             </p>
           </div>
         </div>
+
+        <!-- Empty -->
+        <div v-else class="py-20 text-center text-gray-500">
+          Informasi tentang panti belum tersedia.
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         SIMPLE CTA
+    ========================== -->
+    <section class="bg-emerald-50 px-5 py-20 lg:px-8">
+      <div
+        class="mx-auto max-w-7xl rounded-3xl bg-emerald-700 px-6 py-16 text-center sm:px-12"
+      >
+        <h2 class="mx-auto max-w-3xl text-3xl font-bold text-white sm:text-4xl">
+          Mari ikut mendukung anak-anak Amanah Umat.
+        </h2>
+
+        <p class="mx-auto mt-5 max-w-2xl leading-7 text-emerald-100">
+          Bersama, kita dapat membantu memenuhi kebutuhan dan mendukung
+          perjalanan anak-anak di Panti Asuhan Amanah Umat.
+        </p>
+
+        <router-link
+          to="/donasi"
+          class="mt-8 inline-flex rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-emerald-700 shadow-lg transition hover:bg-gray-100"
+        >
+          Mulai Berdonasi
+        </router-link>
       </div>
     </section>
   </div>
 </template>
-```

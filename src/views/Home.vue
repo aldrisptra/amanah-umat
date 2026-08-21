@@ -1,10 +1,13 @@
 <script setup>
-import { Eye, Heart } from "lucide-vue-next";
 import { ref, onMounted } from "vue";
+import { Eye, Heart } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
 
 const programs = ref([]);
 const loadingPrograms = ref(true);
+
+const gallery = ref([]);
+const loadingGallery = ref(true);
 
 const getPrograms = async () => {
   const { data, error } = await supabase
@@ -14,6 +17,7 @@ const getPrograms = async () => {
 
   if (error) {
     console.error("Gagal mengambil data program:", error);
+    loadingPrograms.value = false;
     return;
   }
 
@@ -21,16 +25,26 @@ const getPrograms = async () => {
   loadingPrograms.value = false;
 };
 
+const getGallery = async () => {
+  const { data, error } = await supabase
+    .from("gallery")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Gagal mengambil data galeri:", error);
+    loadingGallery.value = false;
+    return;
+  }
+
+  gallery.value = data;
+  loadingGallery.value = false;
+};
+
 onMounted(() => {
   getPrograms();
+  getGallery();
 });
-
-const gallery = [
-  "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1504159506876-f8338247a14a?auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1554721299-e0b8aa7666ce?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-  "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?auto=format&fit=crop&w=800&q=80",
-];
 </script>
 
 <template>
@@ -260,15 +274,29 @@ const gallery = [
           </router-link>
         </div>
 
-        <div class="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <!-- Gallery Content -->
+        <div v-if="loadingGallery" class="py-20 text-center text-gray-500">
+          Memuat galeri...
+        </div>
+
+        <div
+          v-else-if="gallery.length === 0"
+          class="py-20 text-center text-gray-500"
+        >
+          Belum ada foto galeri yang tersedia.
+        </div>
+
+        <div v-else class="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
           <div
-            v-for="(image, index) in gallery"
-            :key="index"
+            v-for="image in gallery"
+            :key="image.id"
             class="aspect-square overflow-hidden rounded-2xl"
           >
             <img
-              :src="image"
-              alt="Kegiatan anak-anak Panti Asuhan Amanah Umat"
+              :src="image.image_url"
+              :alt="
+                image.alt_text || 'Kegiatan anak-anak Panti Asuhan Amanah Umat'
+              "
               class="h-full w-full object-cover transition duration-500 hover:scale-105"
             />
           </div>

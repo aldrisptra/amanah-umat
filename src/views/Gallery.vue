@@ -1,4 +1,3 @@
-```vue
 <template>
   <div>
     <!-- =========================
@@ -49,27 +48,49 @@
           </button>
         </div>
 
-        <!-- MASONRY GALLERY -->
-        <div class="columns-1 gap-5 sm:columns-2 lg:columns-3">
+        <!-- LOADING -->
+        <div v-if="loadingGallery" class="py-20 text-center">
+          <p class="text-gray-500">Memuat galeri...</p>
+        </div>
+
+        <!-- GALLERY -->
+        <div
+          v-else-if="filteredGallery.length > 0"
+          class="columns-1 gap-5 sm:columns-2 lg:columns-3"
+        >
           <button
             v-for="item in filteredGallery"
             :key="item.id"
             @click="openLightbox(item)"
-            class="group mb-5 block w-full overflow-hidden rounded-2xl bg-gray-100 text-left"
+            class="group relative mb-5 block w-full overflow-hidden rounded-2xl bg-gray-100 text-left"
           >
             <img
-              :src="item.image"
-              :alt="item.title"
+              :src="item.image_url"
+              :alt="
+                item.alt_text || 'Kegiatan anak-anak Panti Asuhan Amanah Umat'
+              "
               class="w-full object-cover transition duration-500 group-hover:scale-105"
             />
 
-            <!-- Hover Caption -->
-            <div class="absolute"></div>
+            <!-- Hover Overlay -->
+            <div
+              class="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition duration-300 group-hover:opacity-100"
+            >
+              <div class="p-5 text-white">
+                <p class="font-semibold">
+                  {{ item.alt_text }}
+                </p>
+
+                <p class="mt-1 text-sm text-gray-200">
+                  {{ item.category }}
+                </p>
+              </div>
+            </div>
           </button>
         </div>
 
         <!-- EMPTY STATE -->
-        <div v-if="filteredGallery.length === 0" class="py-20 text-center">
+        <div v-else class="py-20 text-center">
           <p class="text-gray-500">Belum ada foto pada kategori ini.</p>
         </div>
       </div>
@@ -83,7 +104,7 @@
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-5"
       @click.self="closeLightbox"
     >
-      <!-- Close -->
+      <!-- CLOSE -->
       <button
         @click="closeLightbox"
         class="absolute right-5 top-5 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-2xl text-white transition hover:bg-white/20"
@@ -92,7 +113,7 @@
         ×
       </button>
 
-      <!-- Previous -->
+      <!-- PREVIOUS -->
       <button
         @click.stop="previousImage"
         class="absolute left-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl text-white transition hover:bg-white/20 sm:left-8"
@@ -101,17 +122,20 @@
         ←
       </button>
 
-      <!-- Image -->
+      <!-- IMAGE -->
       <div class="max-h-[90vh] max-w-5xl">
         <img
-          :src="selectedImage.image"
-          :alt="selectedImage.title"
+          :src="selectedImage.image_url"
+          :alt="
+            selectedImage.alt_text ||
+            'Kegiatan anak-anak Panti Asuhan Amanah Umat'
+          "
           class="max-h-[80vh] max-w-full rounded-2xl object-contain shadow-2xl"
         />
 
         <div class="mt-4 text-center">
           <p class="text-lg font-semibold text-white">
-            {{ selectedImage.title }}
+            {{ selectedImage.alt_text }}
           </p>
 
           <p class="mt-1 text-sm text-gray-300">
@@ -120,7 +144,7 @@
         </div>
       </div>
 
-      <!-- Next -->
+      <!-- NEXT -->
       <button
         @click.stop="nextImage"
         class="absolute right-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl text-white transition hover:bg-white/20 sm:right-8"
@@ -133,10 +157,14 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+import { supabase } from "../lib/supabase";
 
 const activeCategory = ref("Semua");
 const selectedImage = ref(null);
+
+const gallery = ref([]);
+const loadingGallery = ref(true);
 
 const categories = [
   "Semua",
@@ -146,78 +174,32 @@ const categories = [
   "Kegiatan",
 ];
 
-const gallery = [
-  {
-    id: 1,
-    title: "Kegiatan Bersama Anak-anak",
-    category: "Kebersamaan",
-    image:
-      "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: 2,
-    title: "Kegiatan Belajar",
-    category: "Pendidikan",
-    image:
-      "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: 3,
-    title: "Aktivitas Anak-anak",
-    category: "Kegiatan",
-    image:
-      "https://images.unsplash.com/photo-1504159506876-f8338247a14a?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: 4,
-    title: "Kegiatan Kreatif",
-    category: "Kegiatan",
-    image:
-      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: 5,
-    title: "Kegiatan Keagamaan",
-    category: "Keagamaan",
-    image:
-      "https://images.unsplash.com/photo-1609599006353-e629aaabfeae?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: 6,
-    title: "Momen Kebersamaan",
-    category: "Kebersamaan",
-    image:
-      "https://images.unsplash.com/photo-1516627145497-ae6968895b74?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: 7,
-    title: "Belajar Bersama",
-    category: "Pendidikan",
-    image:
-      "https://images.unsplash.com/photo-1497486751825-1233686d5d80?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: 8,
-    title: "Kegiatan Anak",
-    category: "Kegiatan",
-    image:
-      "https://images.unsplash.com/photo-1472162072942-cd5147eb3902?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: 9,
-    title: "Kebersamaan",
-    category: "Kebersamaan",
-    image:
-      "https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=1200&q=80",
-  },
-];
+const getGallery = async () => {
+  const { data, error } = await supabase
+    .from("gallery")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Gagal mengambil data galeri:", error);
+    loadingGallery.value = false;
+    return;
+  }
+
+  gallery.value = data;
+  loadingGallery.value = false;
+};
+
+onMounted(() => {
+  getGallery();
+});
 
 const filteredGallery = computed(() => {
   if (activeCategory.value === "Semua") {
-    return gallery;
+    return gallery.value;
   }
 
-  return gallery.filter((item) => item.category === activeCategory.value);
+  return gallery.value.filter((item) => item.category === activeCategory.value);
 });
 
 function openLightbox(item) {
@@ -229,6 +211,10 @@ function closeLightbox() {
 }
 
 function nextImage() {
+  if (!selectedImage.value || filteredGallery.value.length === 0) {
+    return;
+  }
+
   const currentIndex = filteredGallery.value.findIndex(
     (item) => item.id === selectedImage.value.id,
   );
@@ -239,6 +225,10 @@ function nextImage() {
 }
 
 function previousImage() {
+  if (!selectedImage.value || filteredGallery.value.length === 0) {
+    return;
+  }
+
   const currentIndex = filteredGallery.value.findIndex(
     (item) => item.id === selectedImage.value.id,
   );
@@ -250,4 +240,3 @@ function previousImage() {
   selectedImage.value = filteredGallery.value[previousIndex];
 }
 </script>
-```

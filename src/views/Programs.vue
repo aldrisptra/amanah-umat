@@ -32,22 +32,31 @@
     ========================== -->
     <section class="bg-white py-20">
       <div class="mx-auto max-w-7xl px-5 lg:px-8">
-        <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div v-if="loadingPrograms" class="py-20 text-center text-gray-500">
+          Memuat program...
+        </div>
+
+        <div
+          v-else-if="programs.length === 0"
+          class="py-20 text-center text-gray-500"
+        >
+          Belum ada program yang tersedia.
+        </div>
+
+        <div v-else class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           <article
             v-for="program in programs"
             :key="program.title"
             class="group overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
           >
-            <!-- Image -->
             <div class="aspect-[4/3] overflow-hidden">
               <img
-                :src="program.image"
+                :src="program.image_url"
                 :alt="program.title"
                 class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
               />
             </div>
 
-            <!-- Content -->
             <div class="p-7">
               <span class="text-sm font-semibold text-emerald-600">
                 {{ program.category }}
@@ -94,60 +103,30 @@
 </template>
 
 <script setup>
-const programs = [
-  {
-    category: "Pendidikan",
-    title: "Bimbingan Belajar",
-    description:
-      "Kegiatan pendampingan belajar untuk membantu anak-anak memahami pelajaran dan mendukung pendidikan mereka.",
-    image:
-      "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=1000&q=80",
-  },
+import { ref, onMounted } from "vue";
+import { supabase } from "../lib/supabase";
 
-  {
-    category: "Keagamaan",
-    title: "Pembinaan Keagamaan",
-    description:
-      "Kegiatan keagamaan yang menjadi bagian dari pembinaan dan keseharian anak-anak di Panti Asuhan Amanah Umat.",
-    image:
-      "https://images.unsplash.com/photo-1609599006353-e629aaabfeae?auto=format&fit=crop&w=1000&q=80",
-  },
+const programs = ref([]);
+const loadingPrograms = ref(true);
 
-  {
-    category: "Pengembangan Diri",
-    title: "Pelatihan Keterampilan",
-    description:
-      "Kegiatan yang membantu anak-anak mengembangkan keterampilan, kreativitas, bakat, dan kepercayaan diri.",
-    image:
-      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=1000&q=80",
-  },
+const getPrograms = async () => {
+  const { data, error } = await supabase
+    .from("programs")
+    .select("*")
+    .order("created_at", { ascending: true });
 
-  {
-    category: "Kebersamaan",
-    title: "Kegiatan Bersama",
-    description:
-      "Berbagai kegiatan kebersamaan yang menjadi bagian dari kehidupan anak-anak di lingkungan panti.",
-    image:
-      "https://images.unsplash.com/photo-1516627145497-ae6968895b74?auto=format&fit=crop&w=1000&q=80",
-  },
+  if (error) {
+    console.error("Gagal mengambil data program:", error);
+    loadingPrograms.value = false;
+    return;
+  }
 
-  {
-    category: "Kesehatan",
-    title: "Kegiatan Kesehatan",
-    description:
-      "Kegiatan yang mendukung kesehatan dan kebugaran anak-anak selama berada di lingkungan panti.",
-    image:
-      "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=1000&q=80",
-  },
+  programs.value = data;
+  loadingPrograms.value = false;
+};
 
-  {
-    category: "Kreativitas",
-    title: "Kegiatan Kreatif",
-    description:
-      "Kegiatan yang memberikan ruang bagi anak-anak untuk menyalurkan kreativitas dan mengembangkan minat mereka.",
-    image:
-      "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1000&q=80",
-  },
-];
+onMounted(() => {
+  getPrograms();
+});
 </script>
 ```

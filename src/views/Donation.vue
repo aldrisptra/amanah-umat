@@ -1,4 +1,34 @@
-```vue
+<script setup>
+import { onMounted, ref } from "vue";
+import { supabase } from "../lib/supabase";
+
+const donationInfo = ref(null);
+const loadingDonation = ref(true);
+
+const getDonationInfo = async () => {
+  const { data, error } = await supabase
+    .from("donation_info")
+    .select("*")
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  console.log("DONATION DATA:", data);
+  console.log("DONATION ERROR:", error);
+
+  if (error) {
+    console.error("Gagal mengambil data donasi:", error);
+    loadingDonation.value = false;
+    return;
+  }
+
+  donationInfo.value = data?.[0] || null;
+  loadingDonation.value = false;
+};
+
+onMounted(() => {
+  getDonationInfo();
+});
+</script>
 <template>
   <div>
     <!-- =========================
@@ -110,35 +140,72 @@
             Silakan transfer donasi melalui rekening resmi berikut.
           </p>
 
-          <!-- Bank -->
-          <div class="mt-7 rounded-2xl bg-white p-6 shadow-sm">
-            <p class="text-sm font-semibold text-gray-500">BANK</p>
-
-            <p class="mt-1 text-xl font-bold text-gray-900">NAMA BANK</p>
-
-            <p class="mt-5 text-sm font-semibold text-gray-500">
-              NOMOR REKENING
-            </p>
-
-            <p class="mt-1 text-2xl font-bold tracking-wide text-emerald-600">
-              XXXX XXXX XXXX
-            </p>
-
-            <p class="mt-3 text-sm text-gray-600">a.n. Nama Pemilik Rekening</p>
+          <!-- Loading -->
+          <div
+            v-if="loadingDonation"
+            class="mt-7 rounded-2xl bg-white p-8 text-center shadow-sm"
+          >
+            <p class="text-sm text-gray-500">Memuat informasi donasi...</p>
           </div>
 
-          <!-- QRIS -->
-          <div class="mt-5 rounded-2xl bg-white p-6 text-center shadow-sm">
-            <p class="font-bold text-gray-900">Donasi melalui QRIS</p>
+          <!-- Donation Info -->
+          <template v-else-if="donationInfo">
+            <!-- Bank -->
+            <div class="mt-7 rounded-2xl bg-white p-6 shadow-sm">
+              <p class="text-sm font-semibold text-gray-500">BANK</p>
 
-            <div
-              class="mx-auto mt-5 flex h-52 w-52 items-center justify-center rounded-2xl bg-gray-100"
-            >
-              <span class="text-sm text-gray-400"> QRIS </span>
+              <p class="mt-1 text-xl font-bold text-gray-900">
+                {{ donationInfo.bank_name }}
+              </p>
+
+              <p class="mt-5 text-sm font-semibold text-gray-500">
+                NOMOR REKENING
+              </p>
+
+              <p class="mt-1 text-2xl font-bold tracking-wide text-emerald-600">
+                {{ donationInfo.account_number }}
+              </p>
+
+              <p class="mt-3 text-sm text-gray-600">
+                a.n. {{ donationInfo.account_name }}
+              </p>
             </div>
 
-            <p class="mt-4 text-sm text-gray-500">
-              QRIS resmi Panti Asuhan Amanah Umat
+            <!-- QRIS -->
+            <div class="mt-5 rounded-2xl bg-white p-6 text-center shadow-sm">
+              <p class="font-bold text-gray-900">Donasi melalui QRIS</p>
+
+              <div
+                v-if="donationInfo.qris_url"
+                class="mx-auto mt-5 flex h-52 w-52 items-center justify-center overflow-hidden rounded-2xl bg-gray-100"
+              >
+                <img
+                  :src="donationInfo.qris_url"
+                  alt="QRIS Donasi Amanah Umat"
+                  class="h-full w-full object-contain"
+                />
+              </div>
+
+              <div
+                v-else
+                class="mx-auto mt-5 flex h-52 w-52 items-center justify-center rounded-2xl bg-gray-100"
+              >
+                <span class="text-sm text-gray-400"> QRIS belum tersedia </span>
+              </div>
+
+              <p class="mt-4 text-sm text-gray-500">
+                QRIS resmi Panti Asuhan Amanah Umat
+              </p>
+            </div>
+          </template>
+
+          <!-- Empty -->
+          <div
+            v-else
+            class="mt-7 rounded-2xl bg-white p-8 text-center shadow-sm"
+          >
+            <p class="text-sm text-gray-500">
+              Informasi donasi belum tersedia.
             </p>
           </div>
         </div>
@@ -166,12 +233,19 @@
         </p>
 
         <a
-          href="#"
+          v-if="donationInfo?.whatsapp_number"
+          :href="`https://wa.me/${donationInfo.whatsapp_number}`"
+          target="_blank"
+          rel="noopener noreferrer"
           class="mt-8 inline-flex rounded-full bg-emerald-600 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
         >
           Konfirmasi via WhatsApp
           <span class="ml-2">→</span>
         </a>
+
+        <p v-else class="mt-8 text-sm text-gray-500">
+          Kontak WhatsApp untuk konfirmasi donasi belum tersedia.
+        </p>
       </div>
     </section>
 
@@ -205,4 +279,3 @@
     </section>
   </div>
 </template>
-```
