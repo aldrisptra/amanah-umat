@@ -9,6 +9,7 @@ import Donation from "../views/Donation.vue";
 
 import AdminLogin from "../views/AdminLogin.vue";
 import AdminDashboard from "../views/AdminDashboard.vue";
+import AdminPrograms from "../views/AdminPrograms.vue";
 
 import { supabase } from "../lib/supabase";
 
@@ -61,6 +62,12 @@ const routes = [
     meta: {
       requiresAuth: true,
     },
+  },
+
+  {
+    path: "/admin/program",
+    name: "AdminPrograms",
+    component: AdminPrograms,
   },
 ];
 

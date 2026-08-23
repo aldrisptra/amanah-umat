@@ -115,6 +115,9 @@ const getPrograms = async () => {
     .select("*")
     .order("created_at", { ascending: true });
 
+  console.log("PUBLIC PROGRAM DATA:", data);
+  console.log("PUBLIC PROGRAM ERROR:", error);
+
   if (error) {
     console.error("Gagal mengambil data program:", error);
     loadingPrograms.value = false;

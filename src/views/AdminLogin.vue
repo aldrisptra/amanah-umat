@@ -1,3 +1,39 @@
+<script setup>
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { supabase } from "../lib/supabase";
+
+const router = useRouter();
+
+const email = ref("");
+const password = ref("");
+const loading = ref(false);
+const errorMessage = ref("");
+
+const login = async () => {
+  loading.value = true;
+  errorMessage.value = "";
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email: email.value,
+    password: password.value,
+  });
+
+  if (error) {
+    console.error("Login gagal:", error);
+
+    errorMessage.value = "Email atau password yang kamu masukkan salah.";
+
+    loading.value = false;
+    return;
+  }
+
+  loading.value = false;
+
+  router.push("/admin");
+};
+</script>
+
 <template>
   <div class="min-h-screen bg-emerald-50">
     <div class="flex min-h-screen items-center justify-center px-5 py-12">
@@ -90,39 +126,3 @@
     </div>
   </div>
 </template>
-
-<script setup>
-import { ref } from "vue";
-import { useRouter } from "vue-router";
-import { supabase } from "../lib/supabase";
-
-const router = useRouter();
-
-const email = ref("");
-const password = ref("");
-const loading = ref(false);
-const errorMessage = ref("");
-
-const login = async () => {
-  loading.value = true;
-  errorMessage.value = "";
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email: email.value,
-    password: password.value,
-  });
-
-  if (error) {
-    console.error("Login gagal:", error);
-
-    errorMessage.value = "Email atau password yang kamu masukkan salah.";
-
-    loading.value = false;
-    return;
-  }
-
-  loading.value = false;
-
-  router.push("/admin");
-};
-</script>
