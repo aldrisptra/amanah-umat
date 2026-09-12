@@ -46,12 +46,12 @@ onMounted(() => {
           <h1
             class="mt-4 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl"
           >
-            Bersama mendukung kebutuhan anak-anak Amanah Umat.
+            Bersama mendukung kebutuhan anak-anak Amanah Ummat.
           </h1>
 
           <p class="mt-6 text-lg leading-8 text-gray-600">
             Setiap dukungan yang diberikan dapat membantu memenuhi kebutuhan dan
-            mendukung kegiatan anak-anak di Panti Asuhan Amanah Umat.
+            mendukung kegiatan anak-anak di LKSA Amanah Ummat.
           </p>
         </div>
       </div>
@@ -77,7 +77,7 @@ onMounted(() => {
           <p class="mt-5 leading-8 text-gray-600">
             Donasi yang diberikan dapat membantu mendukung berbagai kebutuhan
             anak-anak, mulai dari kebutuhan sehari-hari, pendidikan, kesehatan,
-            hingga kegiatan yang diselenggarakan oleh panti.
+            hingga kegiatan yang diselenggarakan oleh yayasan.
           </p>
 
           <!-- Benefits -->
@@ -93,7 +93,7 @@ onMounted(() => {
                 <h3 class="font-bold text-gray-900">Kebutuhan sehari-hari</h3>
 
                 <p class="mt-1 text-sm leading-6 text-gray-600">
-                  Membantu memenuhi kebutuhan harian anak-anak di panti.
+                  Membantu memenuhi kebutuhan harian anak-anak di yayasan.
                 </p>
               </div>
             </div>
@@ -181,7 +181,7 @@ onMounted(() => {
               >
                 <img
                   :src="donationInfo.qris_url"
-                  alt="QRIS Donasi Amanah Umat"
+                  alt="QRIS Donasi Amanah Ummat"
                   class="h-full w-full object-contain"
                 />
               </div>
@@ -194,7 +194,7 @@ onMounted(() => {
               </div>
 
               <p class="mt-4 text-sm text-gray-500">
-                QRIS resmi Panti Asuhan Amanah Umat
+                QRIS resmi LKSA Amanah Ummat
               </p>
             </div>
           </template>
@@ -271,7 +271,7 @@ onMounted(() => {
             <p class="mt-4 leading-8 text-gray-600">
               Setiap dukungan yang diberikan merupakan amanah yang harus
               dikelola dengan baik dan digunakan untuk mendukung kebutuhan serta
-              kegiatan anak-anak Panti Asuhan Amanah Umat.
+              kegiatan anak-anak LKSA Amanah Ummat.
             </p>
           </div>
         </div>

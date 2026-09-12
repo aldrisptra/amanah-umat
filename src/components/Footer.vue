@@ -1,3 +1,29 @@
+<script setup>
+import { onMounted, ref } from "vue";
+import { supabase } from "../lib/supabase";
+
+const contact = ref(null);
+
+const getContact = async () => {
+  const { data, error } = await supabase
+    .from("contact")
+    .select("address, phone, email")
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (error) {
+    console.error("Gagal mengambil kontak footer:", error);
+    return;
+  }
+
+  contact.value = data?.[0] || null;
+};
+
+onMounted(() => {
+  getContact();
+});
+</script>
+
 <template>
   <footer class="mt-20 bg-gray-950 text-white">
     <div
@@ -68,11 +94,11 @@
         </h3>
 
         <div class="space-y-3 text-sm text-gray-400">
-          <p>Balikpapan, Kalimantan Timur</p>
+          <p>{{ contact?.address || "Alamat belum tersedia" }}</p>
 
-          <p>+62 812-xxxx-xxxx</p>
+          <p>{{ contact?.phone || "Nomor telepon belum tersedia" }}</p>
 
-          <p>email@yayasan.org</p>
+          <p>{{ contact?.email || "Email belum tersedia" }}</p>
         </div>
       </div>
     </div>

@@ -30,6 +30,43 @@ const form = reactive({
   image_url: "",
 });
 
+const selectedImageFile = ref(null);
+const imagePreviewUrl = ref("");
+
+const uploadImageFile = async (file) => {
+  if (!file) return "";
+
+  const fileExt = file.name.split(".").pop() || "png";
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+  const filePath = `programs/${fileName}`;
+
+  const { data, error } = await supabase.storage
+    .from("images")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from("images")
+    .getPublicUrl(data.path);
+
+  return publicUrlData.publicUrl;
+};
+
+const handleImageChange = (event) => {
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  selectedImageFile.value = file;
+  imagePreviewUrl.value = URL.createObjectURL(file);
+};
+
 // ===============================
 // GET PROGRAMS
 // ===============================
@@ -75,6 +112,8 @@ const resetForm = () => {
   form.category = "";
   form.description = "";
   form.image_url = "";
+  selectedImageFile.value = null;
+  imagePreviewUrl.value = "";
 };
 
 // ===============================
@@ -102,6 +141,8 @@ const openEditModal = (program) => {
   form.category = program.category || "";
   form.description = program.description || "";
   form.image_url = program.image_url || "";
+  selectedImageFile.value = null;
+  imagePreviewUrl.value = program.image_url || "";
 
   showModal.value = true;
 };
@@ -130,84 +171,61 @@ const saveProgram = async () => {
   saving.value = true;
   errorMessage.value = "";
 
-  const payload = {
-    title: form.title.trim(),
-    category: form.category.trim(),
-    description: form.description.trim(),
-    image_url: form.image_url.trim(),
-  };
-
-  console.log("EDITING PROGRAM:", editingProgram.value);
-  console.log("PAYLOAD:", payload);
-
   try {
-    // =========================
-    // EDIT
-    // =========================
+    if (!editingProgram.value && !selectedImageFile.value) {
+      errorMessage.value =
+        "Pilih foto program terlebih dahulu sebelum menyimpan.";
+      saving.value = false;
+      return;
+    }
+
+    let uploadedImageUrl = form.image_url.trim();
+
+    if (selectedImageFile.value) {
+      uploadedImageUrl = await uploadImageFile(selectedImageFile.value);
+    }
+
+    const payload = {
+      title: form.title.trim(),
+      category: form.category.trim(),
+      description: form.description.trim(),
+      image_url: uploadedImageUrl,
+    };
+
+    console.log("EDITING PROGRAM:", editingProgram.value);
+    console.log("PAYLOAD:", payload);
+
+    let result;
 
     if (editingProgram.value) {
-      const { data, error } = await supabase
+      result = await supabase
         .from("programs")
         .update(payload)
         .eq("id", editingProgram.value.id)
         .select();
 
-      console.log("UPDATE DATA:", data);
-      console.log("UPDATE ERROR:", error);
+      console.log("UPDATE DATA:", result.data);
+      console.log("UPDATE ERROR:", result.error);
+    } else {
+      result = await supabase.from("programs").insert(payload).select();
 
-      if (error) {
-        console.error("GAGAL UPDATE PROGRAM:", error);
-
-        errorMessage.value = error.message || "Gagal mengubah program.";
-
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        errorMessage.value =
-          "Program tidak berhasil diubah. Periksa policy Supabase.";
-
-        return;
-      }
-
-      console.log("PROGRAM BERHASIL DIUPDATE");
+      console.log("INSERT DATA:", result.data);
+      console.log("INSERT ERROR:", result.error);
     }
 
-    // =========================
-    // TAMBAH
-    // =========================
-    else {
-      const { data, error } = await supabase
-        .from("programs")
-        .insert(payload)
-        .select();
-
-      console.log("INSERT DATA:", data);
-      console.log("INSERT ERROR:", error);
-
-      if (error) {
-        console.error("GAGAL INSERT PROGRAM:", error);
-
-        errorMessage.value = error.message || "Gagal menambahkan program.";
-
-        return;
-      }
-
-      console.log("PROGRAM BERHASIL DITAMBAHKAN");
+    if (result.error) {
+      throw result.error;
     }
 
-    // Tutup modal
     showModal.value = false;
     editingProgram.value = null;
-
     resetForm();
-
-    // Ambil data terbaru
     await getPrograms();
   } catch (err) {
     console.error("ERROR SAVE PROGRAM:", err);
 
-    errorMessage.value = "Terjadi kesalahan saat menyimpan program.";
+    errorMessage.value =
+      err.message || "Terjadi kesalahan saat menyimpan program.";
   } finally {
     saving.value = false;
   }
@@ -593,20 +611,33 @@ onMounted(async () => {
 
           <div>
             <label class="text-sm font-semibold text-gray-700">
-              URL Gambar
+              Foto Program
             </label>
 
             <input
-              v-model="form.image_url"
-              type="url"
-              placeholder="https://..."
-              class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              type="file"
+              accept="image/*"
+              @change="handleImageChange"
+              class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+              :required="!editingProgram"
             />
 
             <p class="mt-2 text-xs text-gray-400">
-              Untuk sementara gunakan URL gambar. Nanti kita bisa buat upload
-              gambar langsung dari dashboard.
+              Upload foto dari perangkat admin. File akan otomatis disimpan di
+              Supabase Storage.
             </p>
+          </div>
+
+          <div v-if="imagePreviewUrl || form.image_url">
+            <p class="mb-2 text-sm font-semibold text-gray-700">Preview</p>
+
+            <div class="overflow-hidden rounded-2xl bg-gray-100">
+              <img
+                :src="imagePreviewUrl || form.image_url"
+                alt="Preview program"
+                class="max-h-64 w-full object-cover"
+              />
+            </div>
           </div>
 
           <!-- ERROR -->

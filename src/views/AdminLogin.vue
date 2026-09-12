@@ -47,7 +47,7 @@ const login = async () => {
           </div>
 
           <h1 class="mt-5 text-3xl font-bold text-gray-900">
-            Admin Amanah Umat
+            Admin Amanah Ummat
           </h1>
 
           <p class="mt-2 text-sm text-gray-600">
@@ -120,7 +120,7 @@ const login = async () => {
         </div>
 
         <p class="mt-6 text-center text-xs text-gray-400">
-          Panti Asuhan Amanah Umat Balikpapan
+          LKSA Amanah Ummat Balikpapan
         </p>
       </div>
     </div>

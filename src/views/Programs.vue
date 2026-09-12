@@ -20,8 +20,8 @@
           </h1>
 
           <p class="mt-6 max-w-2xl text-lg leading-8 text-gray-600">
-            Berbagai kegiatan yang diselenggarakan Panti Asuhan Amanah Umat
-            untuk mendukung pendidikan, pembinaan, dan tumbuh kembang anak-anak.
+            Berbagai kegiatan yang diselenggarakan LKSA Amanah Ummat untuk
+            mendukung pendidikan, pembinaan, dan tumbuh kembang anak-anak.
           </p>
         </div>
       </div>
@@ -83,12 +83,12 @@
         class="mx-auto max-w-7xl overflow-hidden rounded-3xl bg-emerald-700 px-6 py-16 text-center sm:px-12"
       >
         <h2 class="mx-auto max-w-3xl text-3xl font-bold text-white sm:text-4xl">
-          Dukung kegiatan anak-anak Amanah Umat.
+          Dukung kegiatan anak-anak Amanah Ummat.
         </h2>
 
         <p class="mx-auto mt-5 max-w-2xl leading-7 text-emerald-100">
           Dukungan dari Anda dapat membantu keberlangsungan berbagai kegiatan
-          dan kebutuhan anak-anak di Panti Asuhan Amanah Umat.
+          dan kebutuhan anak-anak di LKSA Amanah Ummat.
         </p>
 
         <router-link

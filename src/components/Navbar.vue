@@ -14,7 +14,7 @@
         </div>
 
         <span class="text-xl font-bold tracking-tight text-gray-900">
-          Amanah Umat
+          Amanah Ummat
         </span>
       </router-link>
 
@@ -60,7 +60,6 @@
           Kontak
         </router-link>
 
-        <!-- Donation Button -->
         <router-link
           to="/donasi"
           class="inline-flex items-center rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md"
@@ -171,7 +170,7 @@
 </template>
 
 <script setup>
-import { Eye, Heart } from "lucide-vue-next";
+import { Heart } from "lucide-vue-next";
 import { ref } from "vue";
 
 const isMenuOpen = ref(false);

@@ -32,9 +32,13 @@ onMounted(() => {
         class="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8"
       >
         <div>
-          <h1 class="text-xl font-bold text-gray-900">Admin Amanah Umat</h1>
+          <p
+            class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600"
+          >
+            Admin Panel
+          </p>
 
-          <p class="text-sm text-gray-500">Dashboard pengelolaan website</p>
+          <h1 class="mt-1 text-xl font-bold text-gray-900">Amanah Ummat</h1>
         </div>
 
         <button
@@ -46,32 +50,57 @@ onMounted(() => {
       </div>
     </header>
 
-    <!-- CONTENT -->
+    <!-- MAIN -->
     <main class="mx-auto max-w-7xl px-5 py-10 lg:px-8">
-      <!-- Welcome -->
-      <div
-        class="rounded-3xl bg-emerald-700 px-6 py-10 text-white shadow-lg sm:px-10"
+      <!-- WELCOME -->
+      <section
+        class="rounded-3xl bg-gradient-to-r from-emerald-700 to-emerald-600 px-6 py-10 text-white shadow-lg sm:px-10"
       >
         <p class="text-sm font-medium text-emerald-100">
           Selamat datang, Admin
         </p>
 
         <h2 class="mt-2 text-3xl font-bold sm:text-4xl">
-          Kelola Website Amanah Umat
+          Kelola konten website Amanah Ummat
         </h2>
 
-        <p class="mt-4 max-w-2xl leading-7 text-emerald-100">
-          Gunakan dashboard ini untuk mengelola informasi yang tampil pada
-          website Panti Asuhan Amanah Umat.
+        <p
+          class="mt-4 max-w-2xl text-sm leading-7 text-emerald-50 sm:text-base"
+        >
+          Gunakan dashboard ini untuk mengelola program, galeri, dan tampilan
+          utama website secara cepat dan rapi.
         </p>
-      </div>
+      </section>
 
       <!-- MENU -->
-      <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <section class="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        <!-- BERANDA -->
+        <router-link
+          to="/admin/home"
+          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
+        >
+          <div
+            class="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-xl"
+          >
+            🏠
+          </div>
+
+          <h3 class="mt-5 text-xl font-bold text-gray-900">Beranda</h3>
+
+          <p class="mt-2 text-sm leading-6 text-gray-500">
+            Kelola judul, deskripsi, foto background, dan bagian ajakan donasi
+            pada halaman beranda.
+          </p>
+
+          <span class="mt-5 inline-flex text-sm font-semibold text-emerald-600">
+            Kelola Beranda →
+          </span>
+        </router-link>
+
         <!-- PROGRAM -->
         <router-link
           to="/admin/program"
-          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
         >
           <div
             class="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-xl"
@@ -82,20 +111,18 @@ onMounted(() => {
           <h3 class="mt-5 text-xl font-bold text-gray-900">Program</h3>
 
           <p class="mt-2 text-sm leading-6 text-gray-500">
-            Tambah, ubah, dan hapus program yang ditampilkan pada website.
+            Tambah, ubah, dan hapus program yang tampil di website.
           </p>
 
-          <span
-            class="mt-5 inline-flex text-sm font-semibold text-emerald-600 transition group-hover:text-emerald-700"
-          >
+          <span class="mt-5 inline-flex text-sm font-semibold text-emerald-600">
             Kelola Program →
           </span>
         </router-link>
 
-        <!-- GALLERY -->
+        <!-- GALERI -->
         <router-link
           to="/admin/gallery"
-          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
         >
           <div
             class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-xl"
@@ -106,71 +133,21 @@ onMounted(() => {
           <h3 class="mt-5 text-xl font-bold text-gray-900">Galeri</h3>
 
           <p class="mt-2 text-sm leading-6 text-gray-500">
-            Kelola foto kegiatan dan momen anak-anak Amanah Umat.
+            Kelola foto kegiatan dan momen penting organisasi.
           </p>
 
-          <span
-            class="mt-5 inline-flex text-sm font-semibold text-emerald-600 transition group-hover:text-emerald-700"
-          >
+          <span class="mt-5 inline-flex text-sm font-semibold text-emerald-600">
             Kelola Galeri →
           </span>
         </router-link>
 
-        <!-- ABOUT -->
-        <router-link
-          to="/admin/about"
-          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-        >
-          <div
-            class="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-xl"
-          >
-            ℹ️
-          </div>
-
-          <h3 class="mt-5 text-xl font-bold text-gray-900">Tentang Kami</h3>
-
-          <p class="mt-2 text-sm leading-6 text-gray-500">
-            Kelola informasi dan foto tentang Panti Asuhan Amanah Umat.
-          </p>
-
-          <span
-            class="mt-5 inline-flex text-sm font-semibold text-emerald-600 transition group-hover:text-emerald-700"
-          >
-            Kelola Tentang Kami →
-          </span>
-        </router-link>
-
-        <!-- DONATION -->
-        <router-link
-          to="/admin/donation"
-          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-        >
-          <div
-            class="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-xl"
-          >
-            💰
-          </div>
-
-          <h3 class="mt-5 text-xl font-bold text-gray-900">Donasi</h3>
-
-          <p class="mt-2 text-sm leading-6 text-gray-500">
-            Kelola rekening, QRIS, dan informasi donasi.
-          </p>
-
-          <span
-            class="mt-5 inline-flex text-sm font-semibold text-emerald-600 transition group-hover:text-emerald-700"
-          >
-            Kelola Donasi →
-          </span>
-        </router-link>
-
-        <!-- CONTACT -->
+        <!-- KONTAK -->
         <router-link
           to="/admin/contact"
-          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
         >
           <div
-            class="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-xl"
+            class="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-100 text-xl"
           >
             📞
           </div>
@@ -178,20 +155,62 @@ onMounted(() => {
           <h3 class="mt-5 text-xl font-bold text-gray-900">Kontak</h3>
 
           <p class="mt-2 text-sm leading-6 text-gray-500">
-            Kelola alamat, nomor WhatsApp, email, dan informasi kontak.
+            Ubah alamat, nomor telepon, email, dan lokasi kontak website.
           </p>
 
-          <span
-            class="mt-5 inline-flex text-sm font-semibold text-emerald-600 transition group-hover:text-emerald-700"
-          >
+          <span class="mt-5 inline-flex text-sm font-semibold text-emerald-600">
             Kelola Kontak →
           </span>
         </router-link>
 
-        <!-- WEBSITE -->
+        <!-- DONASI -->
+        <router-link
+          to="/admin/donation"
+          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
+        >
+          <div
+            class="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-xl"
+          >
+            💰
+          </div>
+
+          <h3 class="mt-5 text-xl font-bold text-gray-900">Donasi</h3>
+
+          <p class="mt-2 text-sm leading-6 text-gray-500">
+            Kelola rekening donasi, QRIS, dan kontak konfirmasi donasi.
+          </p>
+
+          <span class="mt-5 inline-flex text-sm font-semibold text-emerald-600">
+            Kelola Donasi →
+          </span>
+        </router-link>
+
+        <!-- TENTANG -->
+        <router-link
+          to="/admin/about"
+          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
+        >
+          <div
+            class="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 text-xl"
+          >
+            🏠
+          </div>
+
+          <h3 class="mt-5 text-xl font-bold text-gray-900">Tentang</h3>
+
+          <p class="mt-2 text-sm leading-6 text-gray-500">
+            Kelola judul, deskripsi, dan foto utama halaman Tentang Kami.
+          </p>
+
+          <span class="mt-5 inline-flex text-sm font-semibold text-emerald-600">
+            Kelola Tentang →
+          </span>
+        </router-link>
+
+        <!-- LIHAT WEBSITE -->
         <router-link
           to="/"
-          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+          class="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
         >
           <div
             class="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-xl"
@@ -202,16 +221,14 @@ onMounted(() => {
           <h3 class="mt-5 text-xl font-bold text-gray-900">Lihat Website</h3>
 
           <p class="mt-2 text-sm leading-6 text-gray-500">
-            Kembali melihat tampilan website sebagai pengunjung.
+            Buka tampilan website publik sebagai pengunjung.
           </p>
 
-          <span
-            class="mt-5 inline-flex text-sm font-semibold text-emerald-600 transition group-hover:text-emerald-700"
-          >
+          <span class="mt-5 inline-flex text-sm font-semibold text-emerald-600">
             Buka Website →
           </span>
         </router-link>
-      </div>
+      </section>
     </main>
   </div>
 </template>

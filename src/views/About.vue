@@ -50,12 +50,12 @@ onMounted(() => {
           <h1
             class="mt-4 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl"
           >
-            Mengenal Panti Asuhan Amanah Umat.
+            Mengenal LKSA Amanah Ummat.
           </h1>
 
           <p class="mt-6 max-w-2xl text-lg leading-8 text-gray-600">
             Mengenal lebih dekat tempat kami mendampingi dan membersamai
-            anak-anak Panti Asuhan Amanah Umat.
+            anak-anak LKSA Amanah Ummat.
           </p>
         </div>
       </div>
@@ -87,7 +87,7 @@ onMounted(() => {
             <span
               class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
             >
-              Tentang Amanah Umat
+              Tentang Amanah Ummat
             </span>
 
             <h2
@@ -104,7 +104,7 @@ onMounted(() => {
 
         <!-- Empty -->
         <div v-else class="py-20 text-center text-gray-500">
-          Informasi tentang panti belum tersedia.
+          Informasi tentang LKSA belum tersedia.
         </div>
       </div>
     </section>
@@ -117,12 +117,12 @@ onMounted(() => {
         class="mx-auto max-w-7xl rounded-3xl bg-emerald-700 px-6 py-16 text-center sm:px-12"
       >
         <h2 class="mx-auto max-w-3xl text-3xl font-bold text-white sm:text-4xl">
-          Mari ikut mendukung anak-anak Amanah Umat.
+          Mari ikut mendukung anak-anak Amanah Ummat.
         </h2>
 
         <p class="mx-auto mt-5 max-w-2xl leading-7 text-emerald-100">
           Bersama, kita dapat membantu memenuhi kebutuhan dan mendukung
-          perjalanan anak-anak di Panti Asuhan Amanah Umat.
+          perjalanan anak-anak di LKSA Amanah Ummat.
         </p>
 
         <router-link

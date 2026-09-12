@@ -5,6 +5,9 @@ import { supabase } from "../lib/supabase";
 const contact = ref(null);
 const loadingContact = ref(true);
 
+const fixedMapEmbedUrl =
+  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d205.15782885079486!2d116.81811197479935!3d-1.235029399999991!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2df1473fd39e937d%3A0xa0d99127e037ab21!2sPanti%20asuhan%20Amanah%20Ummat!5e1!3m2!1sen!2sid!4v1788662116802!5m2!1sen!2sid";
+
 const getContact = async () => {
   const { data, error } = await supabase
     .from("contact")
@@ -45,12 +48,12 @@ onMounted(() => {
           <h1
             class="mt-4 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl"
           >
-            Hubungi Panti Asuhan Amanah Umat.
+            Hubungi LKSA Amanah Ummat.
           </h1>
 
           <p class="mt-6 max-w-2xl text-lg leading-8 text-gray-600">
-            Jika Anda ingin mengetahui lebih lanjut tentang Panti Asuhan Amanah
-            Umat atau ingin memberikan dukungan, silakan hubungi kami.
+            Jika Anda ingin mengetahui lebih lanjut tentang LKSA Amanah Ummat
+            atau ingin memberikan dukungan, silakan hubungi kami.
           </p>
         </div>
       </div>
@@ -84,7 +87,7 @@ onMounted(() => {
 
             <p class="mt-5 leading-8 text-gray-600">
               Jangan ragu untuk menghubungi kami untuk mendapatkan informasi
-              lebih lanjut mengenai Panti Asuhan Amanah Umat.
+              lebih lanjut mengenai LKSA Amanah Ummat.
             </p>
 
             <!-- Address -->
@@ -182,34 +185,13 @@ onMounted(() => {
 
           <!-- RIGHT : MAP -->
           <div class="overflow-hidden rounded-3xl bg-gray-100 shadow-sm">
-            <!-- Map tersedia -->
             <iframe
-              v-if="contact.latitude && contact.longitude"
-              :src="`https://www.google.com/maps?q=${contact.latitude},${contact.longitude}&z=16&output=embed`"
+              :src="fixedMapEmbedUrl"
               class="h-[450px] w-full border-0"
               loading="lazy"
               allowfullscreen
               referrerpolicy="no-referrer-when-downgrade"
             ></iframe>
-
-            <!-- Map belum tersedia -->
-            <div
-              v-else
-              class="flex h-[450px] items-center justify-center px-6 text-center"
-            >
-              <div>
-                <div class="text-4xl">📍</div>
-
-                <p class="mt-3 font-semibold text-gray-700">
-                  Lokasi Panti Asuhan Amanah Umat
-                </p>
-
-                <p class="mt-2 text-sm leading-6 text-gray-500">
-                  Lokasi panti akan ditampilkan setelah koordinat lokasi
-                  tersedia.
-                </p>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -228,12 +210,12 @@ onMounted(() => {
         class="mx-auto max-w-7xl rounded-3xl bg-emerald-700 px-6 py-16 text-center sm:px-12"
       >
         <h2 class="mx-auto max-w-3xl text-3xl font-bold text-white sm:text-4xl">
-          Mari terhubung dengan Amanah Umat.
+          Mari terhubung dengan Amanah Ummat.
         </h2>
 
         <p class="mx-auto mt-5 max-w-2xl leading-7 text-emerald-100">
           Hubungi kami untuk mendapatkan informasi lebih lanjut atau memberikan
-          dukungan kepada anak-anak Panti Asuhan Amanah Umat.
+          dukungan kepada anak-anak LKSA Amanah Ummat.
         </p>
 
         <a

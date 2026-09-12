@@ -15,12 +15,12 @@
           <h1
             class="mt-4 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl"
           >
-            Momen bersama anak-anak Amanah Umat.
+            Momen bersama anak-anak Amanah Ummat.
           </h1>
 
           <p class="mt-6 max-w-2xl text-lg leading-8 text-gray-600">
             Kumpulan momen dari berbagai kegiatan dan keseharian anak-anak di
-            Panti Asuhan Amanah Umat.
+            LKSA Amanah Ummat.
           </p>
         </div>
       </div>
@@ -66,9 +66,7 @@
           >
             <img
               :src="item.image_url"
-              :alt="
-                item.alt_text || 'Kegiatan anak-anak Panti Asuhan Amanah Umat'
-              "
+              :alt="item.alt_text || 'Kegiatan anak-anak LKSA Amanah Ummat'"
               class="w-full object-cover transition duration-500 group-hover:scale-105"
             />
 
@@ -127,8 +125,7 @@
         <img
           :src="selectedImage.image_url"
           :alt="
-            selectedImage.alt_text ||
-            'Kegiatan anak-anak Panti Asuhan Amanah Umat'
+            selectedImage.alt_text || 'Kegiatan anak-anak LKSA Amanah Ummat'
           "
           class="max-h-[80vh] max-w-full rounded-2xl object-contain shadow-2xl"
         />

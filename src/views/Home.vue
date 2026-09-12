@@ -2,12 +2,74 @@
 import { ref, onMounted } from "vue";
 import { Eye, Heart } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
+import heroPanti from "../assets/images/hero.jpg";
 
+/* =========================
+   STATE
+========================= */
+
+// Home
+const homeContent = ref(null);
+const loadingHome = ref(true);
+
+// About
+const about = ref(null);
+const loadingAbout = ref(true);
+
+// Programs
 const programs = ref([]);
 const loadingPrograms = ref(true);
 
+// Gallery
 const gallery = ref([]);
 const loadingGallery = ref(true);
+
+/* =========================
+   GET HOME CONTENT
+========================= */
+
+const getHomeContent = async () => {
+  const { data, error } = await supabase
+    .from("home_content")
+    .select("*")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .single();
+
+  if (error) {
+    console.error("Gagal mengambil konten beranda:", error);
+    loadingHome.value = false;
+    return;
+  }
+
+  homeContent.value = data;
+  loadingHome.value = false;
+};
+
+/* =========================
+   GET ABOUT
+========================= */
+
+const getAbout = async () => {
+  const { data, error } = await supabase
+    .from("about")
+    .select("*")
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (error) {
+    console.error("Gagal mengambil data tentang kami:", error);
+    loadingAbout.value = false;
+    return;
+  }
+
+  about.value = data?.[0] || null;
+  loadingAbout.value = false;
+};
+
+/* =========================
+   GET PROGRAMS
+========================= */
 
 const getPrograms = async () => {
   const { data, error } = await supabase
@@ -21,9 +83,13 @@ const getPrograms = async () => {
     return;
   }
 
-  programs.value = data;
+  programs.value = data || [];
   loadingPrograms.value = false;
 };
+
+/* =========================
+   GET GALLERY
+========================= */
 
 const getGallery = async () => {
   const { data, error } = await supabase
@@ -37,11 +103,17 @@ const getGallery = async () => {
     return;
   }
 
-  gallery.value = data;
+  gallery.value = data || [];
   loadingGallery.value = false;
 };
 
+/* =========================
+   LOAD ALL DATA
+========================= */
+
 onMounted(() => {
+  getHomeContent();
+  getAbout();
   getPrograms();
   getGallery();
 });
@@ -55,11 +127,10 @@ onMounted(() => {
     <section class="relative min-h-[calc(100vh-73px)] overflow-hidden">
       <!-- Background Image -->
       <img
-        src="https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=2000&q=85"
-        alt="Anak-anak Panti Asuhan Amanah Umat"
+        :src="homeContent?.hero_image_url || heroPanti"
+        alt="Anak-anak LKSA Amanah Ummat"
         class="absolute inset-0 h-full w-full object-cover"
       />
-
       <!-- Dark Overlay -->
       <div class="absolute inset-0 bg-black/60"></div>
 
@@ -91,23 +162,31 @@ onMounted(() => {
           <span
             class="inline-flex rounded-full border border-white/30 bg-white/10 px-5 py-2 text-sm font-semibold text-white backdrop-blur-sm"
           >
-            Panti Asuhan Amanah Umat Balikpapan
+            LKSA Amanah Ummat Balikpapan
           </span>
 
-          <!-- Heading -->
-          <h1
-            class="mx-auto mt-6 max-w-4xl text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl"
-          >
-            Amanah <span class="text-emerald-300">Umat</span>
-          </h1>
+          <!-- Loading Hero -->
+          <div v-if="loadingHome" class="mt-6 text-white">Memuat...</div>
 
-          <!-- Description -->
-          <p
-            class="mx-auto mt-6 max-w-2xl text-base leading-8 text-gray-200 sm:text-lg"
-          >
-            Memberikan kasih sayang, pendidikan, dan kehidupan yang layak bagi
-            anak-anak yatim, dan piatu di Balikpapan, Kalimantan Timur.
-          </p>
+          <!-- Hero Content -->
+          <template v-else>
+            <!-- Heading -->
+            <h1
+              class="mx-auto mt-6 max-w-4xl text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl"
+            >
+              {{ homeContent?.hero_title || "Amanah Ummat" }}
+            </h1>
+
+            <!-- Description -->
+            <p
+              class="mx-auto mt-6 max-w-2xl text-base leading-8 text-gray-200 sm:text-lg"
+            >
+              {{
+                homeContent?.hero_description ||
+                "Memberikan kasih sayang, pendidikan, dan kehidupan yang layak bagi anak-anak yatim, piatu, dan dhuafa di Balikpapan, Kalimantan Timur."
+              }}
+            </p>
+          </template>
 
           <!-- Buttons -->
           <div
@@ -119,7 +198,6 @@ onMounted(() => {
               class="inline-flex min-w-[190px] items-center justify-center rounded-full bg-emerald-600 px-7 py-3.5 text-sm font-semibold text-white shadow-xl shadow-emerald-900/30 transition duration-300 hover:-translate-y-1 hover:bg-emerald-500"
             >
               <Heart class="mr-2 h-4 w-4" />
-
               Donasi Sekarang
             </router-link>
 
@@ -129,7 +207,6 @@ onMounted(() => {
               class="inline-flex min-w-[190px] items-center justify-center rounded-full border border-white/60 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:bg-white hover:text-gray-900"
             >
               <Eye class="mr-2 h-4 w-4" />
-
               Lihat Program
             </router-link>
           </div>
@@ -141,41 +218,55 @@ onMounted(() => {
          ABOUT
     ========================== -->
     <section class="bg-white py-20">
-      <div class="mx-auto grid max-w-7xl gap-12 px-5 lg:grid-cols-2 lg:px-8">
-        <div>
-          <span
-            class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
-          >
-            Tentang Kami
-          </span>
-
-          <h2
-            class="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl"
-          >
-            Mengenal Panti Asuhan Amanah Umat.
-          </h2>
+      <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <!-- Loading -->
+        <div v-if="loadingAbout" class="py-10 text-center text-gray-500">
+          Memuat informasi tentang kami...
         </div>
 
-        <div>
-          <p class="leading-8 text-gray-600">
-            Panti Asuhan Amanah Umat Balikpapan merupakan tempat tinggal dan
-            pembinaan bagi anak-anak yang membutuhkan perhatian, kasih sayang,
-            pendidikan, dan pendampingan.
-          </p>
+        <!-- About Content -->
+        <div v-else-if="about" class="grid items-center gap-12 lg:grid-cols-2">
+          <!-- Image -->
+          <div class="overflow-hidden rounded-3xl">
+            <img
+              :src="about.image_url"
+              :alt="about.title"
+              class="h-[360px] w-full object-cover"
+            />
+          </div>
 
-          <p class="mt-5 leading-8 text-gray-600">
-            Di panti, anak-anak menjalani keseharian bersama, belajar,
-            beribadah, bermain, dan mengikuti berbagai kegiatan yang mendukung
-            tumbuh kembang mereka.
-          </p>
+          <!-- Text -->
+          <div>
+            <span
+              class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
+            >
+              Tentang Kami
+            </span>
 
-          <router-link
-            to="/tentang-kami"
-            class="mt-6 inline-flex font-semibold text-emerald-600 transition hover:text-emerald-700"
-          >
-            Selengkapnya
-            <span class="ml-2">→</span>
-          </router-link>
+            <h2
+              class="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl"
+            >
+              {{ about.title }}
+            </h2>
+
+            <p class="mt-5 whitespace-pre-line leading-8 text-gray-600">
+              {{ about.description }}
+            </p>
+
+            <!-- Link -->
+            <router-link
+              to="/tentang-kami"
+              class="mt-6 inline-flex font-semibold text-emerald-600 transition hover:text-emerald-700"
+            >
+              Selengkapnya
+              <span class="ml-2">→</span>
+            </router-link>
+          </div>
+        </div>
+
+        <!-- Empty -->
+        <div v-else class="py-10 text-center text-gray-500">
+          Informasi tentang LKSA belum tersedia.
         </div>
       </div>
     </section>
@@ -201,17 +292,26 @@ onMounted(() => {
 
           <p class="mx-auto mt-4 max-w-2xl leading-7 text-gray-600">
             Berbagai program yang diselenggarakan untuk mendukung pendidikan,
-            pembinaan, dan kegiatan anak-anak Panti Asuhan Amanah Umat.
+            pembinaan, dan kegiatan anak-anak LKSA Amanah Ummat.
           </p>
         </div>
 
+        <!-- Loading -->
+        <div v-if="loadingPrograms" class="py-20 text-center text-gray-500">
+          Memuat program...
+        </div>
+
         <!-- Program Cards -->
-        <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div
+          v-else-if="programs.length > 0"
+          class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+        >
           <article
-            v-for="program in programs"
-            :key="program.title"
+            v-for="program in programs.slice(0, 3)"
+            :key="program.id"
             class="overflow-hidden rounded-2xl bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
           >
+            <!-- Image -->
             <div class="aspect-[4/3] overflow-hidden">
               <img
                 :src="program.image_url"
@@ -220,6 +320,7 @@ onMounted(() => {
               />
             </div>
 
+            <!-- Content -->
             <div class="p-6">
               <h3 class="text-xl font-bold text-gray-900">
                 {{ program.title }}
@@ -239,6 +340,12 @@ onMounted(() => {
           </article>
         </div>
 
+        <!-- Empty -->
+        <div v-else class="py-20 text-center text-gray-500">
+          Belum ada program yang tersedia.
+        </div>
+
+        <!-- All Programs -->
         <div class="mt-10 text-center">
           <router-link
             to="/program"
@@ -249,11 +356,13 @@ onMounted(() => {
         </div>
       </div>
     </section>
+
     <!-- =========================
          GALLERY
     ========================== -->
     <section class="bg-white py-20">
       <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <!-- Heading -->
         <div
           class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"
         >
@@ -274,11 +383,12 @@ onMounted(() => {
           </router-link>
         </div>
 
-        <!-- Gallery Content -->
+        <!-- Loading -->
         <div v-if="loadingGallery" class="py-20 text-center text-gray-500">
           Memuat galeri...
         </div>
 
+        <!-- Empty -->
         <div
           v-else-if="gallery.length === 0"
           class="py-20 text-center text-gray-500"
@@ -286,17 +396,16 @@ onMounted(() => {
           Belum ada foto galeri yang tersedia.
         </div>
 
+        <!-- Gallery -->
         <div v-else class="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
           <div
-            v-for="image in gallery"
+            v-for="image in gallery.slice(0, 8)"
             :key="image.id"
             class="aspect-square overflow-hidden rounded-2xl"
           >
             <img
               :src="image.image_url"
-              :alt="
-                image.alt_text || 'Kegiatan anak-anak Panti Asuhan Amanah Umat'
-              "
+              :alt="image.alt_text || 'Kegiatan anak-anak LKSA Amanah Ummat'"
               class="h-full w-full object-cover transition duration-500 hover:scale-105"
             />
           </div>
@@ -311,15 +420,23 @@ onMounted(() => {
       <div
         class="mx-auto max-w-7xl overflow-hidden rounded-3xl bg-emerald-700 px-6 py-16 text-center sm:px-12"
       >
+        <!-- CTA Title -->
         <h2 class="mx-auto max-w-3xl text-3xl font-bold text-white sm:text-4xl">
-          Mari ikut mendukung perjalanan anak-anak Amanah Umat.
+          {{
+            homeContent?.cta_title ||
+            "Mari ikut mendukung perjalanan anak-anak Amanah Ummat."
+          }}
         </h2>
 
+        <!-- CTA Description -->
         <p class="mx-auto mt-5 max-w-2xl leading-7 text-emerald-100">
-          Dukungan Anda dapat membantu memenuhi kebutuhan dan mendukung berbagai
-          kegiatan anak-anak Panti Asuhan Amanah Umat.
+          {{
+            homeContent?.cta_description ||
+            "Dukungan Anda dapat membantu memenuhi kebutuhan dan mendukung berbagai kegiatan anak-anak LKSA Amanah Ummat."
+          }}
         </p>
 
+        <!-- CTA Button -->
         <router-link
           to="/donasi"
           class="mt-8 inline-flex rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-emerald-700 shadow-lg transition hover:bg-gray-100"
