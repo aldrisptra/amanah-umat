@@ -10,7 +10,6 @@ import heroPanti from "../assets/images/hero.jpg";
 
 // Home
 const homeContent = ref(null);
-const loadingHome = ref(true);
 
 // About
 const about = ref(null);
@@ -29,21 +28,20 @@ const loadingGallery = ref(true);
 ========================= */
 
 const getHomeContent = async () => {
+  // .limit(1) tanpa .single(): .single() melempar error ketika tabel masih
+  // kosong, padahal beranda seharusnya tetap tampil memakai teks cadangan.
   const { data, error } = await supabase
     .from("home_content")
     .select("*")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .single();
+    .order("created_at", { ascending: false })
+    .limit(1);
 
   if (error) {
     console.error("Gagal mengambil konten beranda:", error);
-    loadingHome.value = false;
     return;
   }
 
-  homeContent.value = data;
-  loadingHome.value = false;
+  homeContent.value = data?.[0] || null;
 };
 
 /* =========================
@@ -54,7 +52,7 @@ const getAbout = async () => {
   const { data, error } = await supabase
     .from("about")
     .select("*")
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(1);
 
   if (error) {
@@ -124,23 +122,26 @@ onMounted(() => {
     <!-- =========================
          HERO
     ========================== -->
-    <section class="relative min-h-[calc(100vh-73px)] overflow-hidden">
+    <section class="relative min-h-svh overflow-hidden">
       <!-- Background Image -->
       <img
         :src="homeContent?.hero_image_url || heroPanti"
         alt="Anak-anak LKSA Amanah Ummat"
-        class="absolute inset-0 h-full w-full object-cover"
+        fetchpriority="high"
+        class="hero-zoom absolute inset-0 h-full w-full object-cover"
       />
       <!-- Dark Overlay -->
-      <div class="absolute inset-0 bg-black/60"></div>
+      <div
+        class="absolute inset-0 bg-linear-to-b from-black/70 via-black/55 to-black/75"
+      ></div>
 
       <!-- Hero Content -->
       <div
-        class="relative z-10 flex min-h-[calc(100vh-73px)] items-center justify-center px-5 py-20 text-center"
+        class="relative z-10 flex min-h-svh items-center justify-center px-5 pb-24 pt-28 text-center"
       >
         <div class="mx-auto max-w-4xl">
           <!-- Bismillah -->
-          <div class="mb-8">
+          <div class="hero-masuk mb-8" style="--tunda: 0ms">
             <p
               dir="rtl"
               class="font-serif text-3xl leading-relaxed text-emerald-100 sm:text-4xl lg:text-5xl"
@@ -160,57 +161,92 @@ onMounted(() => {
 
           <!-- Small Label -->
           <span
-            class="inline-flex rounded-full border border-white/30 bg-white/10 px-5 py-2 text-sm font-semibold text-white backdrop-blur-sm"
+            class="hero-masuk inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-5 py-2 text-sm font-semibold text-white backdrop-blur-md"
+            style="--tunda: 120ms"
           >
+            <span class="relative flex h-2 w-2" aria-hidden="true">
+              <span
+                class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:hidden"
+              ></span>
+              <span
+                class="relative inline-flex h-2 w-2 rounded-full bg-emerald-400"
+              ></span>
+            </span>
+
             LKSA Amanah Ummat Balikpapan
           </span>
 
-          <!-- Loading Hero -->
-          <div v-if="loadingHome" class="mt-6 text-white">Memuat...</div>
+          <!-- Judul & deskripsi.
+               Tanpa keadaan "memuat": teks cadangan sudah tersedia sehingga
+               pengunjung langsung melihat isi, bukan tulisan "Memuat..."
+               setinggi satu layar penuh. -->
 
-          <!-- Hero Content -->
-          <template v-else>
-            <!-- Heading -->
-            <h1
-              class="mx-auto mt-6 max-w-4xl text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl"
-            >
-              {{ homeContent?.hero_title || "Amanah Ummat" }}
-            </h1>
+          <!-- Heading -->
+          <h1
+            class="hero-masuk mx-auto mt-6 max-w-4xl text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl"
+            style="--tunda: 220ms"
+          >
+            {{ homeContent?.hero_title || "Amanah Ummat" }}
+          </h1>
 
-            <!-- Description -->
-            <p
-              class="mx-auto mt-6 max-w-2xl text-base leading-8 text-gray-200 sm:text-lg"
-            >
-              {{
-                homeContent?.hero_description ||
-                "Memberikan kasih sayang, pendidikan, dan kehidupan yang layak bagi anak-anak yatim, piatu, dan dhuafa di Balikpapan, Kalimantan Timur."
-              }}
-            </p>
-          </template>
+          <!-- Description -->
+          <p
+            class="hero-masuk mx-auto mt-6 max-w-2xl text-base leading-8 text-gray-200 sm:text-lg"
+            style="--tunda: 320ms"
+          >
+            {{
+              homeContent?.hero_description ||
+              "Memberikan kasih sayang, pendidikan, dan kehidupan yang layak bagi anak-anak yatim, piatu, dan dhuafa di Balikpapan, Kalimantan Timur."
+            }}
+          </p>
 
           <!-- Buttons -->
           <div
-            class="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row"
+            class="hero-masuk mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row"
+            style="--tunda: 420ms"
           >
             <!-- Donation -->
             <router-link
               to="/donasi"
-              class="inline-flex min-w-[190px] items-center justify-center rounded-full bg-emerald-600 px-7 py-3.5 text-sm font-semibold text-white shadow-xl shadow-emerald-900/30 transition duration-300 hover:-translate-y-1 hover:bg-emerald-500"
+              class="group relative inline-flex min-w-[190px] items-center justify-center overflow-hidden rounded-full bg-emerald-600 px-7 py-3.5 text-sm font-semibold text-white shadow-xl shadow-emerald-900/30 transition duration-300 hover:-translate-y-1 hover:bg-emerald-500 hover:shadow-2xl active:translate-y-0"
             >
-              <Heart class="mr-2 h-4 w-4" />
-              Donasi Sekarang
+              <span
+                aria-hidden="true"
+                class="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full motion-reduce:hidden"
+              ></span>
+
+              <Heart
+                class="relative mr-2 h-4 w-4 transition-transform duration-300 group-hover:scale-125"
+              />
+
+              <span class="relative">Donasi Sekarang</span>
             </router-link>
 
             <!-- Program -->
             <router-link
               to="/program"
-              class="inline-flex min-w-[190px] items-center justify-center rounded-full border border-white/60 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:bg-white hover:text-gray-900"
+              class="group inline-flex min-w-[190px] items-center justify-center rounded-full border border-white/50 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:bg-white hover:text-gray-900 active:translate-y-0"
             >
-              <Eye class="mr-2 h-4 w-4" />
+              <Eye
+                class="mr-2 h-4 w-4 transition-transform duration-300 group-hover:scale-110"
+              />
               Lihat Program
             </router-link>
           </div>
         </div>
+      </div>
+
+      <!-- Petunjuk bahwa halaman masih berlanjut ke bawah -->
+      <div
+        class="absolute inset-x-0 bottom-7 z-10 flex justify-center"
+        aria-hidden="true"
+      >
+        <span
+          class="hero-masuk flex h-10 w-6 items-start justify-center rounded-full border-2 border-white/40 p-1.5"
+          style="--tunda: 650ms"
+        >
+          <span class="titik-gulir h-1.5 w-1 rounded-full bg-white/70"></span>
+        </span>
       </div>
     </section>
 
@@ -220,23 +256,32 @@ onMounted(() => {
     <section class="bg-white py-20">
       <div class="mx-auto max-w-7xl px-5 lg:px-8">
         <!-- Loading -->
-        <div v-if="loadingAbout" class="py-10 text-center text-gray-500">
-          Memuat informasi tentang kami...
+        <div v-if="loadingAbout" class="grid items-center gap-12 lg:grid-cols-2">
+          <div class="skeleton h-[360px] rounded-3xl"></div>
+
+          <div class="space-y-4">
+            <div class="skeleton h-3 w-28"></div>
+            <div class="skeleton h-9 w-4/5"></div>
+            <div class="skeleton h-4 w-full"></div>
+            <div class="skeleton h-4 w-full"></div>
+            <div class="skeleton h-4 w-2/3"></div>
+          </div>
         </div>
 
         <!-- About Content -->
         <div v-else-if="about" class="grid items-center gap-12 lg:grid-cols-2">
           <!-- Image -->
-          <div class="overflow-hidden rounded-3xl">
+          <div v-reveal="{ arah: 'kiri' }" class="group overflow-hidden rounded-3xl">
             <img
               :src="about.image_url"
               :alt="about.title"
-              class="h-[360px] w-full object-cover"
+              loading="lazy"
+              class="h-[360px] w-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
           </div>
 
           <!-- Text -->
-          <div>
+          <div v-reveal="{ arah: 'kanan' }">
             <span
               class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
             >
@@ -249,17 +294,23 @@ onMounted(() => {
               {{ about.title }}
             </h2>
 
-            <p class="mt-5 whitespace-pre-line leading-8 text-gray-600">
+            <p
+              class="mt-5 line-clamp-6 whitespace-pre-line leading-8 text-gray-600"
+            >
               {{ about.description }}
             </p>
 
             <!-- Link -->
             <router-link
               to="/tentang-kami"
-              class="mt-6 inline-flex font-semibold text-emerald-600 transition hover:text-emerald-700"
+              class="group mt-6 inline-flex items-center font-semibold text-emerald-600 transition hover:text-emerald-700"
             >
               Selengkapnya
-              <span class="ml-2">→</span>
+              <span
+                class="ml-2 transition-transform duration-300 group-hover:translate-x-1"
+              >
+                →
+              </span>
             </router-link>
           </div>
         </div>
@@ -277,7 +328,7 @@ onMounted(() => {
     <section class="bg-emerald-50 py-20">
       <div class="mx-auto max-w-7xl px-5 lg:px-8">
         <!-- Heading -->
-        <div class="text-center">
+        <div v-reveal class="text-center">
           <span
             class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
           >
@@ -297,8 +348,24 @@ onMounted(() => {
         </div>
 
         <!-- Loading -->
-        <div v-if="loadingPrograms" class="py-20 text-center text-gray-500">
-          Memuat program...
+        <div
+          v-if="loadingPrograms"
+          class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+        >
+          <div
+            v-for="n in 3"
+            :key="n"
+            class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100"
+          >
+            <div class="skeleton aspect-4/3 rounded-none"></div>
+
+            <div class="space-y-3 p-6">
+              <div class="skeleton h-3 w-20"></div>
+              <div class="skeleton h-5 w-3/4"></div>
+              <div class="skeleton h-3 w-full"></div>
+              <div class="skeleton h-3 w-5/6"></div>
+            </div>
+          </div>
         </div>
 
         <!-- Program Cards -->
@@ -307,34 +374,48 @@ onMounted(() => {
           class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3"
         >
           <article
-            v-for="program in programs.slice(0, 3)"
+            v-for="(program, index) in programs.slice(0, 3)"
             :key="program.id"
-            class="overflow-hidden rounded-2xl bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+            v-reveal="{ delay: index * 110 }"
+            class="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:ring-emerald-200"
           >
             <!-- Image -->
-            <div class="aspect-[4/3] overflow-hidden">
+            <div class="aspect-4/3 overflow-hidden">
               <img
                 :src="program.image_url"
                 :alt="program.title"
-                class="h-full w-full object-cover transition duration-500 hover:scale-105"
+                loading="lazy"
+                class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
             </div>
 
             <!-- Content -->
             <div class="p-6">
-              <h3 class="text-xl font-bold text-gray-900">
+              <span
+                v-if="program.category"
+                class="text-xs font-semibold uppercase tracking-wider text-emerald-600"
+              >
+                {{ program.category }}
+              </span>
+
+              <h3 class="mt-2 text-xl font-bold text-gray-900">
                 {{ program.title }}
               </h3>
 
-              <p class="mt-3 text-sm leading-7 text-gray-600">
+              <p class="mt-3 line-clamp-3 text-sm leading-7 text-gray-600">
                 {{ program.description }}
               </p>
 
               <router-link
                 to="/program"
-                class="mt-5 inline-flex text-sm font-semibold text-emerald-600"
+                class="mt-5 inline-flex items-center text-sm font-semibold text-emerald-600"
               >
-                Selengkapnya →
+                Selengkapnya
+                <span
+                  class="ml-1.5 transition-transform duration-300 group-hover:translate-x-1"
+                >
+                  →
+                </span>
               </router-link>
             </div>
           </article>
@@ -346,7 +427,7 @@ onMounted(() => {
         </div>
 
         <!-- All Programs -->
-        <div class="mt-10 text-center">
+        <div v-reveal class="mt-10 text-center">
           <router-link
             to="/program"
             class="inline-flex rounded-full border border-emerald-600 px-6 py-3 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-600 hover:text-white"
@@ -364,6 +445,7 @@ onMounted(() => {
       <div class="mx-auto max-w-7xl px-5 lg:px-8">
         <!-- Heading -->
         <div
+          v-reveal
           class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"
         >
           <div>
@@ -378,14 +460,29 @@ onMounted(() => {
             </h2>
           </div>
 
-          <router-link to="/galeri" class="font-semibold text-emerald-600">
-            Lihat Semua →
+          <router-link
+            to="/galeri"
+            class="group inline-flex items-center font-semibold text-emerald-600"
+          >
+            Lihat Semua
+            <span
+              class="ml-1.5 transition-transform duration-300 group-hover:translate-x-1"
+            >
+              →
+            </span>
           </router-link>
         </div>
 
         <!-- Loading -->
-        <div v-if="loadingGallery" class="py-20 text-center text-gray-500">
-          Memuat galeri...
+        <div
+          v-if="loadingGallery"
+          class="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4"
+        >
+          <div
+            v-for="n in 8"
+            :key="n"
+            class="skeleton aspect-square rounded-2xl"
+          ></div>
         </div>
 
         <!-- Empty -->
@@ -399,14 +496,16 @@ onMounted(() => {
         <!-- Gallery -->
         <div v-else class="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
           <div
-            v-for="image in gallery.slice(0, 8)"
+            v-for="(image, index) in gallery.slice(0, 8)"
             :key="image.id"
+            v-reveal="{ delay: index * 70 }"
             class="aspect-square overflow-hidden rounded-2xl"
           >
             <img
               :src="image.image_url"
               :alt="image.alt_text || 'Kegiatan anak-anak LKSA Amanah Ummat'"
-              class="h-full w-full object-cover transition duration-500 hover:scale-105"
+              loading="lazy"
+              class="h-full w-full object-cover transition duration-700 hover:scale-110"
             />
           </div>
         </div>
@@ -418,10 +517,23 @@ onMounted(() => {
     ========================== -->
     <section class="px-5 py-20 lg:px-8">
       <div
-        class="mx-auto max-w-7xl overflow-hidden rounded-3xl bg-emerald-700 px-6 py-16 text-center sm:px-12"
+        v-reveal
+        class="relative mx-auto max-w-7xl overflow-hidden rounded-3xl bg-linear-to-br from-emerald-700 to-emerald-600 px-6 py-16 text-center shadow-2xl shadow-emerald-900/20 sm:px-12"
       >
+        <!-- Bulatan samar sebagai hiasan latar -->
+        <span
+          aria-hidden="true"
+          class="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl"
+        ></span>
+        <span
+          aria-hidden="true"
+          class="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-emerald-300/10 blur-2xl"
+        ></span>
+
         <!-- CTA Title -->
-        <h2 class="mx-auto max-w-3xl text-3xl font-bold text-white sm:text-4xl">
+        <h2
+          class="relative mx-auto max-w-3xl text-3xl font-bold text-white sm:text-4xl"
+        >
           {{
             homeContent?.cta_title ||
             "Mari ikut mendukung perjalanan anak-anak Amanah Ummat."
@@ -429,7 +541,7 @@ onMounted(() => {
         </h2>
 
         <!-- CTA Description -->
-        <p class="mx-auto mt-5 max-w-2xl leading-7 text-emerald-100">
+        <p class="relative mx-auto mt-5 max-w-2xl leading-7 text-emerald-100">
           {{
             homeContent?.cta_description ||
             "Dukungan Anda dapat membantu memenuhi kebutuhan dan mendukung berbagai kegiatan anak-anak LKSA Amanah Ummat."
@@ -439,11 +551,77 @@ onMounted(() => {
         <!-- CTA Button -->
         <router-link
           to="/donasi"
-          class="mt-8 inline-flex rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-emerald-700 shadow-lg transition hover:bg-gray-100"
+          class="group relative mt-8 inline-flex items-center rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-emerald-700 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl active:translate-y-0"
         >
           Mulai Berdonasi
+          <span
+            class="ml-2 transition-transform duration-300 group-hover:translate-x-1"
+          >
+            →
+          </span>
         </router-link>
       </div>
     </section>
   </div>
 </template>
+
+<style scoped>
+/* Foto hero membesar sangat perlahan. Hanya `transform`, sehingga
+   dikerjakan kartu grafis dan tidak membebani ponsel. */
+.hero-zoom {
+  animation: hero-zoom 22s ease-out forwards;
+}
+
+@keyframes hero-zoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.09);
+  }
+}
+
+/* Isi hero muncul berurutan, diatur lewat variabel --tunda di tiap elemen */
+.hero-masuk {
+  animation: hero-masuk 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--tunda, 0ms);
+}
+
+@keyframes hero-masuk {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.titik-gulir {
+  animation: titik-gulir 1.9s ease-in-out infinite;
+}
+
+@keyframes titik-gulir {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  35% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-zoom,
+  .hero-masuk,
+  .titik-gulir {
+    animation: none;
+  }
+}
+</style>

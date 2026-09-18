@@ -4,7 +4,7 @@
          HERO
     ========================== -->
     <section class="bg-emerald-50">
-      <div class="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-24">
+      <div class="mx-auto max-w-7xl px-5 pb-20 pt-32 lg:px-8 lg:pb-24 lg:pt-40">
         <div class="max-w-3xl">
           <span
             class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
@@ -32,12 +32,15 @@
     <section class="bg-white py-20">
       <div class="mx-auto max-w-7xl px-5 lg:px-8">
         <!-- FILTER -->
-        <div class="mb-10 flex flex-wrap gap-3">
+        <div
+          v-if="categories.length > 1"
+          class="mb-10 flex flex-wrap gap-3"
+        >
           <button
             v-for="category in categories"
             :key="category"
             @click="activeCategory = category"
-            class="rounded-full px-5 py-2.5 text-sm font-semibold transition"
+            class="rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
             :class="
               activeCategory === category
                 ? 'bg-emerald-600 text-white'
@@ -49,8 +52,16 @@
         </div>
 
         <!-- LOADING -->
-        <div v-if="loadingGallery" class="py-20 text-center">
-          <p class="text-gray-500">Memuat galeri...</p>
+        <div
+          v-if="loadingGallery"
+          class="columns-1 gap-5 sm:columns-2 lg:columns-3"
+        >
+          <div
+            v-for="n in 9"
+            :key="n"
+            class="skeleton mb-5 w-full rounded-2xl"
+            :style="{ height: `${180 + ((n * 47) % 140)}px` }"
+          ></div>
         </div>
 
         <!-- GALLERY -->
@@ -59,15 +70,17 @@
           class="columns-1 gap-5 sm:columns-2 lg:columns-3"
         >
           <button
-            v-for="item in filteredGallery"
+            v-for="(item, index) in filteredGallery"
             :key="item.id"
+            v-reveal="{ delay: (index % 6) * 80 }"
             @click="openLightbox(item)"
-            class="group relative mb-5 block w-full overflow-hidden rounded-2xl bg-gray-100 text-left"
+            class="group relative mb-5 block w-full overflow-hidden rounded-2xl bg-gray-100 text-left transition-shadow duration-300 hover:shadow-xl"
           >
             <img
               :src="item.image_url"
               :alt="item.alt_text || 'Kegiatan anak-anak LKSA Amanah Ummat'"
-              class="w-full object-cover transition duration-500 group-hover:scale-105"
+              loading="lazy"
+              class="w-full object-cover transition-transform duration-700 group-hover:scale-110"
             />
 
             <!-- Hover Overlay -->
@@ -113,6 +126,7 @@
 
       <!-- PREVIOUS -->
       <button
+        v-if="filteredGallery.length > 1"
         @click.stop="previousImage"
         class="absolute left-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl text-white transition hover:bg-white/20 sm:left-8"
         aria-label="Foto sebelumnya"
@@ -143,6 +157,7 @@
 
       <!-- NEXT -->
       <button
+        v-if="filteredGallery.length > 1"
         @click.stop="nextImage"
         class="absolute right-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl text-white transition hover:bg-white/20 sm:right-8"
         aria-label="Foto berikutnya"
@@ -154,7 +169,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { supabase } from "../lib/supabase";
 
 const activeCategory = ref("Semua");
@@ -163,13 +178,16 @@ const selectedImage = ref(null);
 const gallery = ref([]);
 const loadingGallery = ref(true);
 
-const categories = [
-  "Semua",
-  "Pendidikan",
-  "Keagamaan",
-  "Kebersamaan",
-  "Kegiatan",
-];
+// Kategori diambil dari data, bukan daftar tetap. Dengan cara ini kategori
+// baru yang ditambahkan lewat CMS langsung muncul sebagai filter, dan
+// kategori yang belum punya foto tidak menampilkan hasil kosong.
+const categories = computed(() => {
+  const dariData = gallery.value
+    .map((item) => item.category)
+    .filter((category) => Boolean(category));
+
+  return ["Semua", ...new Set(dariData)];
+});
 
 const getGallery = async () => {
   const { data, error } = await supabase
@@ -183,7 +201,7 @@ const getGallery = async () => {
     return;
   }
 
-  gallery.value = data;
+  gallery.value = data || [];
   loadingGallery.value = false;
 };
 
@@ -206,6 +224,38 @@ function openLightbox(item) {
 function closeLightbox() {
   selectedImage.value = null;
 }
+
+/* =========================
+   KONTROL KEYBOARD LIGHTBOX
+========================= */
+
+const handleKeydown = (event) => {
+  if (!selectedImage.value) return;
+
+  if (event.key === "Escape") closeLightbox();
+  if (event.key === "ArrowRight") nextImage();
+  if (event.key === "ArrowLeft") previousImage();
+};
+
+onMounted(() => {
+  window.addEventListener("keydown", handleKeydown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", handleKeydown);
+  document.body.style.overflow = "";
+});
+
+// Cegah halaman di belakang ikut ter-scroll saat lightbox terbuka
+watch(selectedImage, (image) => {
+  document.body.style.overflow = image ? "hidden" : "";
+});
+
+// Bila filter diganti saat lightbox terbuka, foto aktif bisa tidak ada lagi
+// di daftar sehingga tombol maju/mundur berhenti bekerja.
+watch(activeCategory, () => {
+  closeLightbox();
+});
 
 function nextImage() {
   if (!selectedImage.value || filteredGallery.value.length === 0) {

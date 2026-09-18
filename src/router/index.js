@@ -1,19 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 import Home from "../views/Home.vue";
-import About from "../views/About.vue";
-import Programs from "../views/Programs.vue";
-import Gallery from "../views/Gallery.vue";
-import Contact from "../views/Contact.vue";
-import Donation from "../views/Donation.vue";
-
-import AdminLogin from "../views/AdminLogin.vue";
-import AdminDashboard from "../views/AdminDashboard.vue";
-import AdminPrograms from "../views/AdminPrograms.vue";
-import AdminContact from "../views/AdminContact.vue";
-import AdminDonation from "../views/AdminDonation.vue";
-import AdminAbout from "../views/AdminAbout.vue";
-import AdminHome from "../views/AdminHome.vue";
 
 import { supabase } from "../lib/supabase";
 
@@ -31,31 +18,31 @@ const routes = [
   {
     path: "/tentang-kami",
     name: "about",
-    component: About,
+    component: () => import("../views/About.vue"),
   },
 
   {
     path: "/program",
     name: "programs",
-    component: Programs,
+    component: () => import("../views/Programs.vue"),
   },
 
   {
     path: "/galeri",
     name: "gallery",
-    component: Gallery,
+    component: () => import("../views/Gallery.vue"),
   },
 
   {
     path: "/kontak",
     name: "contact",
-    component: Contact,
+    component: () => import("../views/Contact.vue"),
   },
 
   {
     path: "/donasi",
     name: "donation",
-    component: Donation,
+    component: () => import("../views/Donation.vue"),
   },
 
   // =========================
@@ -65,76 +52,90 @@ const routes = [
   {
     path: "/admin/login",
     name: "AdminLogin",
-    component: AdminLogin,
+    component: () => import("../views/AdminLogin.vue"),
   },
 
+  // Seluruh halaman pengelolaan berbagi satu kerangka (menu samping, identitas
+  // admin, tombol keluar). Dengan rute bersarang, kerangka itu tidak dibuat
+  // ulang setiap berpindah menu - menu samping tetap diam dan posisi
+  // gulirannya tidak melompat.
   {
     path: "/admin",
-    name: "AdminDashboard",
-    component: AdminDashboard,
+    component: () => import("../layouts/AdminLayout.vue"),
     meta: {
       requiresAuth: true,
     },
+    children: [
+      {
+        path: "",
+        name: "AdminDashboard",
+        component: () => import("../views/AdminDashboard.vue"),
+      },
+      {
+        path: "identitas",
+        name: "AdminIdentity",
+        component: () => import("../views/AdminIdentity.vue"),
+      },
+      {
+        path: "home",
+        name: "AdminHome",
+        component: () => import("../views/AdminHome.vue"),
+      },
+      {
+        path: "about",
+        name: "AdminAbout",
+        component: () => import("../views/AdminAbout.vue"),
+      },
+      {
+        path: "perjalanan",
+        name: "AdminAboutSections",
+        component: () => import("../views/AdminAboutSections.vue"),
+      },
+      {
+        path: "program",
+        name: "AdminPrograms",
+        component: () => import("../views/AdminPrograms.vue"),
+      },
+      {
+        path: "gallery",
+        name: "AdminGallery",
+        component: () => import("../views/AdminGallery.vue"),
+      },
+      {
+        path: "contact",
+        name: "AdminContact",
+        component: () => import("../views/AdminContact.vue"),
+      },
+      {
+        path: "donation",
+        name: "AdminDonation",
+        component: () => import("../views/AdminDonation.vue"),
+      },
+    ],
   },
 
-  {
-    path: "/admin/home",
-    name: "AdminHome",
-    component: AdminHome,
-    meta: {
-      requiresAuth: true,
-    },
-  },
+  // =========================
+  // 404 - HARUS PALING BAWAH
+  // =========================
 
   {
-    path: "/admin/program",
-    name: "AdminPrograms",
-    component: AdminPrograms,
-    meta: {
-      requiresAuth: true,
-    },
-  },
-
-  {
-    path: "/admin/gallery",
-    name: "AdminGallery",
-    component: () => import("../views/AdminGallery.vue"),
-    meta: {
-      requiresAuth: true,
-    },
-  },
-
-  {
-    path: "/admin/contact",
-    name: "AdminContact",
-    component: AdminContact,
-    meta: {
-      requiresAuth: true,
-    },
-  },
-
-  {
-    path: "/admin/donation",
-    name: "AdminDonation",
-    component: AdminDonation,
-    meta: {
-      requiresAuth: true,
-    },
-  },
-
-  {
-    path: "/admin/about",
-    name: "AdminAbout",
-    component: AdminAbout,
-    meta: {
-      requiresAuth: true,
-    },
+    path: "/:pathMatch(.*)*",
+    name: "NotFound",
+    component: () => import("../views/NotFound.vue"),
   },
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+
+  // Tanpa ini, pindah halaman akan mempertahankan posisi scroll lama
+  // sehingga pengunjung seolah-olah mendarat di tengah halaman.
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition;
+
+    return { top: 0 };
+  },
 });
 
 // =========================
@@ -142,23 +143,27 @@ const router = createRouter({
 // =========================
 
 router.beforeEach(async (to) => {
+  const isAdminRoute = to.path.startsWith("/admin");
+
+  // Halaman publik tidak perlu menunggu Supabase memulihkan sesi.
+  // Sebelumnya getSession() dipanggil pada SETIAP navigasi, termasuk
+  // beranda, sehingga render awal website tertunda tanpa alasan.
+  if (!isAdminRoute) return true;
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const isAdminRoute = to.path.startsWith("/admin");
   const isAdminLoginRoute = to.path === "/admin/login";
 
-  if (isAdminRoute) {
-    // Belum login → arahkan ke login
-    if (!session && !isAdminLoginRoute) {
-      return "/admin/login";
-    }
+  // Belum login -> arahkan ke login, sambil mengingat tujuan awal
+  if (!session && !isAdminLoginRoute) {
+    return { path: "/admin/login", query: { redirect: to.fullPath } };
+  }
 
-    // Sudah login tapi membuka halaman login → arahkan ke dashboard
-    if (session && isAdminLoginRoute) {
-      return "/admin";
-    }
+  // Sudah login tapi membuka halaman login -> arahkan ke dashboard
+  if (session && isAdminLoginRoute) {
+    return "/admin";
   }
 
   return true;

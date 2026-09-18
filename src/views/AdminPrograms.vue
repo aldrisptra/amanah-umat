@@ -1,9 +1,13 @@
 <script setup>
-import { onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
+import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { Pencil, Plus, Trash2 } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
-
-const router = useRouter();
+import AdminPage from "../components/admin/AdminPage.vue";
+import AdminField from "../components/admin/AdminField.vue";
+import AdminImageInput from "../components/admin/AdminImageInput.vue";
+import AdminConfirm from "../components/admin/AdminConfirm.vue";
+import AdminAlert from "../components/admin/AdminAlert.vue";
+import { buildStorageFileName } from "../lib/utils";
 
 // ===============================
 // STATE
@@ -14,10 +18,16 @@ const loading = ref(true);
 
 const showModal = ref(false);
 const saving = ref(false);
+const uploading = ref(false);
+
+// Program yang sedang menunggu konfirmasi hapus
+const programDihapus = ref(null);
 const deleting = ref(false);
 
 const editingProgram = ref(null);
 const errorMessage = ref("");
+const successMessage = ref("");
+const listErrorMessage = ref("");
 
 // ===============================
 // FORM
@@ -33,21 +43,28 @@ const form = reactive({
 const selectedImageFile = ref(null);
 const imagePreviewUrl = ref("");
 
+// URL pratinjau lokal harus dibebaskan agar tidak menumpuk di memori
+const revokePreview = () => {
+  if (imagePreviewUrl.value.startsWith("blob:")) {
+    URL.revokeObjectURL(imagePreviewUrl.value);
+  }
+};
+
+onBeforeUnmount(revokePreview);
+
 const uploadImageFile = async (file) => {
   if (!file) return "";
 
-  const fileExt = file.name.split(".").pop() || "png";
-  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
-  const filePath = `programs/${fileName}`;
+  uploading.value = true;
+
+  const filePath = `programs/${buildStorageFileName(file)}`;
 
   const { data, error } = await supabase.storage
     .from("images")
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
+    .upload(filePath, file, { cacheControl: "3600", upsert: false });
 
   if (error) {
+    uploading.value = false;
     throw error;
   }
 
@@ -55,20 +72,29 @@ const uploadImageFile = async (file) => {
     .from("images")
     .getPublicUrl(data.path);
 
+  uploading.value = false;
+
   return publicUrlData.publicUrl;
 };
 
-const handleImageChange = (event) => {
-  const file = event.target.files?.[0];
+const handleImageSelect = (file) => {
+  errorMessage.value = "";
 
-  if (!file) return;
+  revokePreview();
 
   selectedImageFile.value = file;
   imagePreviewUrl.value = URL.createObjectURL(file);
 };
 
+const handleImageClear = () => {
+  revokePreview();
+
+  selectedImageFile.value = null;
+  imagePreviewUrl.value = form.image_url;
+};
+
 // ===============================
-// GET PROGRAMS
+// AMBIL DATA
 // ===============================
 
 const getPrograms = async () => {
@@ -80,31 +106,28 @@ const getPrograms = async () => {
       .select("*")
       .order("created_at", { ascending: true });
 
-    console.log("PROGRAM DATA:", data);
-    console.log("PROGRAM ERROR:", error);
-
     if (error) {
       console.error("Gagal mengambil program:", error);
 
       programs.value = [];
-
-      errorMessage.value = error.message;
+      listErrorMessage.value = error.message;
       return;
     }
 
+    listErrorMessage.value = "";
     programs.value = data || [];
   } catch (err) {
     console.error("ERROR GET PROGRAMS:", err);
 
     programs.value = [];
-    errorMessage.value = "Gagal mengambil data program.";
+    listErrorMessage.value = "Gagal mengambil data program.";
   } finally {
     loading.value = false;
   }
 };
 
 // ===============================
-// RESET FORM
+// MODAL
 // ===============================
 
 const resetForm = () => {
@@ -113,43 +136,36 @@ const resetForm = () => {
   form.description = "";
   form.image_url = "";
   selectedImageFile.value = null;
+  revokePreview();
   imagePreviewUrl.value = "";
 };
-
-// ===============================
-// TAMBAH PROGRAM
-// ===============================
 
 const openAddModal = () => {
   editingProgram.value = null;
   errorMessage.value = "";
+  successMessage.value = "";
 
   resetForm();
 
   showModal.value = true;
 };
 
-// ===============================
-// EDIT PROGRAM
-// ===============================
-
 const openEditModal = (program) => {
   editingProgram.value = program;
   errorMessage.value = "";
+  successMessage.value = "";
 
   form.title = program.title || "";
   form.category = program.category || "";
   form.description = program.description || "";
   form.image_url = program.image_url || "";
+
   selectedImageFile.value = null;
+  revokePreview();
   imagePreviewUrl.value = program.image_url || "";
 
   showModal.value = true;
 };
-
-// ===============================
-// TUTUP MODAL
-// ===============================
 
 const closeModal = () => {
   if (saving.value) return;
@@ -162,7 +178,7 @@ const closeModal = () => {
 };
 
 // ===============================
-// SIMPAN PROGRAM
+// SIMPAN
 // ===============================
 
 const saveProgram = async () => {
@@ -170,6 +186,7 @@ const saveProgram = async () => {
 
   saving.value = true;
   errorMessage.value = "";
+  successMessage.value = "";
 
   try {
     if (!editingProgram.value && !selectedImageFile.value) {
@@ -192,9 +209,6 @@ const saveProgram = async () => {
       image_url: uploadedImageUrl,
     };
 
-    console.log("EDITING PROGRAM:", editingProgram.value);
-    console.log("PAYLOAD:", payload);
-
     let result;
 
     if (editingProgram.value) {
@@ -203,24 +217,25 @@ const saveProgram = async () => {
         .update(payload)
         .eq("id", editingProgram.value.id)
         .select();
-
-      console.log("UPDATE DATA:", result.data);
-      console.log("UPDATE ERROR:", result.error);
     } else {
       result = await supabase.from("programs").insert(payload).select();
-
-      console.log("INSERT DATA:", result.data);
-      console.log("INSERT ERROR:", result.error);
     }
 
     if (result.error) {
       throw result.error;
     }
 
+    const sedangEdit = Boolean(editingProgram.value);
+
     showModal.value = false;
     editingProgram.value = null;
     resetForm();
+
     await getPrograms();
+
+    successMessage.value = sedangEdit
+      ? "Program berhasil diperbarui."
+      : "Program baru berhasil ditambahkan.";
   } catch (err) {
     console.error("ERROR SAVE PROGRAM:", err);
 
@@ -228,435 +243,311 @@ const saveProgram = async () => {
       err.message || "Terjadi kesalahan saat menyimpan program.";
   } finally {
     saving.value = false;
+    uploading.value = false;
   }
 };
 
 // ===============================
-// HAPUS PROGRAM
+// HAPUS
 // ===============================
 
-const deleteProgram = async (program) => {
-  if (deleting.value) return;
+const deleteProgram = async () => {
+  const program = programDihapus.value;
 
-  const confirmed = window.confirm(
-    `Yakin ingin menghapus program "${program.title}"?`,
-  );
-
-  if (!confirmed) return;
+  if (!program || deleting.value) return;
 
   deleting.value = true;
-
-  console.log("==============================");
-  console.log("MULAI HAPUS PROGRAM");
-  console.log("PROGRAM:", program);
-  console.log("PROGRAM ID:", program.id);
-  console.log("==============================");
+  listErrorMessage.value = "";
+  successMessage.value = "";
 
   try {
+    // .select() dipakai agar bisa membedakan "benar-benar terhapus" dari
+    // "ditolak diam-diam oleh kebijakan keamanan (RLS) Supabase".
     const { data, error } = await supabase
       .from("programs")
       .delete()
       .eq("id", program.id)
       .select();
 
-    console.log("DELETE DATA:", data);
-    console.log("DELETE ERROR:", error);
-
-    // =========================
-    // JIKA ADA ERROR
-    // =========================
-
     if (error) {
-      console.error("GAGAL MENGHAPUS PROGRAM:", error);
-
-      window.alert(`Program gagal dihapus.\n\nError:\n${error.message}`);
-
-      return;
+      throw error;
     }
-
-    // =========================
-    // JIKA TIDAK ADA DATA
-    // =========================
 
     if (!data || data.length === 0) {
-      console.warn("TIDAK ADA DATA YANG TERHAPUS");
-
-      window.alert(
-        "Program tidak terhapus.\n\n" +
-          "Kemungkinan DELETE Policy / RLS di Supabase belum mengizinkan akun admin menghapus data.",
-      );
-
+      listErrorMessage.value =
+        "Program tidak terhapus. Kemungkinan sesi admin sudah berakhir. Coba keluar lalu masuk kembali.";
       return;
     }
 
-    // =========================
-    // BERHASIL
-    // =========================
-
-    console.log("==============================");
-    console.log("PROGRAM BERHASIL DIHAPUS");
-    console.log("DATA YANG DIHAPUS:", data);
-    console.log("==============================");
-
-    // Hapus langsung dari tampilan
     programs.value = programs.value.filter((item) => item.id !== program.id);
 
-    window.alert("Program berhasil dihapus.");
+    successMessage.value = `Program "${program.title}" berhasil dihapus.`;
   } catch (err) {
     console.error("ERROR DELETE PROGRAM:", err);
 
-    window.alert("Terjadi kesalahan saat menghapus program.");
+    listErrorMessage.value =
+      err.message || "Terjadi kesalahan saat menghapus program.";
   } finally {
     deleting.value = false;
+    programDihapus.value = null;
   }
 };
 
-// ===============================
-// LOGOUT
-// ===============================
-
-const logout = async () => {
-  await supabase.auth.signOut();
-
-  router.replace("/admin/login");
-};
-
-// ===============================
-// CHECK SESSION
-// ===============================
-
-const checkSession = async () => {
-  const { data, error } = await supabase.auth.getSession();
-
-  if (error) {
-    console.error("SESSION ERROR:", error);
-
-    router.replace("/admin/login");
-
-    return false;
-  }
-
-  if (!data.session) {
-    router.replace("/admin/login");
-
-    return false;
-  }
-
-  return true;
-};
-
-// ===============================
-// ON MOUNTED
-// ===============================
-
-onMounted(async () => {
-  const isLoggedIn = await checkSession();
-
-  if (isLoggedIn) {
-    await getPrograms();
-  }
-});
+onMounted(getPrograms);
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <!-- ========================= -->
-    <!-- HEADER -->
-    <!-- ========================= -->
-
-    <header class="border-b border-gray-200 bg-white">
+  <AdminPage
+    title="Program"
+    description="Daftar kegiatan dan program yang dijalankan bersama anak-anak. Tiga program pertama juga tampil di halaman depan."
+    public-path="/program"
+    wide
+  >
+    <template #toolbar>
       <div
-        class="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8"
+        class="mt-6 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
       >
-        <div>
-          <h1 class="text-xl font-bold text-gray-900">Kelola Program</h1>
+        <p class="text-sm text-gray-600">
+          <template v-if="loading">Memuat...</template>
 
-          <p class="text-sm text-gray-500">
-            Kelola program yang tampil di website.
-          </p>
-        </div>
+          <template v-else-if="programs.length">
+            Saat ini ada
+            <strong class="font-semibold text-gray-900">
+              {{ programs.length }} program
+            </strong>
+            yang tampil di website.
+          </template>
 
-        <div class="flex items-center gap-3">
-          <router-link
-            to="/admin"
-            class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
-          >
-            ← Dashboard
-          </router-link>
-
-          <button
-            @click="logout"
-            class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-          >
-            Keluar
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- ========================= -->
-    <!-- CONTENT -->
-    <!-- ========================= -->
-
-    <main class="mx-auto max-w-7xl px-5 py-10 lg:px-8">
-      <!-- TOP -->
-
-      <div
-        class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"
-      >
-        <div>
-          <h2 class="text-2xl font-bold text-gray-900">Daftar Program</h2>
-
-          <p class="mt-1 text-sm text-gray-500">
-            {{ programs.length }} program tersedia.
-          </p>
-        </div>
+          <template v-else>Belum ada program yang ditambahkan.</template>
+        </p>
 
         <button
+          type="button"
           @click="openAddModal"
-          class="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
+          class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
         >
-          + Tambah Program
+          <Plus class="h-4 w-4" />
+          Tambah Program
         </button>
       </div>
+    </template>
 
-      <!-- ERROR -->
+    <AdminAlert
+      :error="listErrorMessage"
+      :success="successMessage"
+      @dismiss="
+        listErrorMessage = '';
+        successMessage = '';
+      "
+    />
 
-      <div
-        v-if="errorMessage && !showModal"
-        class="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600"
+    <!-- MEMUAT -->
+    <div
+      v-if="loading"
+      class="rounded-2xl border border-gray-200 bg-white p-16 text-center text-sm text-gray-500"
+    >
+      Memuat program...
+    </div>
+
+    <!-- KOSONG -->
+    <div
+      v-else-if="programs.length === 0"
+      class="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center"
+    >
+      <p class="font-semibold text-gray-900">Belum ada program</p>
+
+      <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
+        Tambahkan kegiatan yang rutin dijalankan bersama anak-anak, misalnya
+        bimbingan belajar, mengaji, atau pemeriksaan kesehatan.
+      </p>
+
+      <button
+        type="button"
+        @click="openAddModal"
+        class="mt-6 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
       >
-        {{ errorMessage }}
-      </div>
+        <Plus class="h-4 w-4" />
+        Tambah Program Pertama
+      </button>
+    </div>
 
-      <!-- LOADING -->
-
-      <div
-        v-if="loading"
-        class="mt-10 rounded-2xl bg-white p-12 text-center shadow-sm"
+    <!-- DAFTAR -->
+    <div v-else class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <article
+        v-for="program in programs"
+        :key="program.id"
+        class="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white"
       >
-        <p class="text-gray-500">Memuat program...</p>
-      </div>
+        <div class="aspect-[4/3] overflow-hidden bg-gray-100">
+          <img
+            v-if="program.image_url"
+            :src="program.image_url"
+            :alt="program.title"
+            loading="lazy"
+            class="h-full w-full object-cover"
+          />
 
-      <!-- EMPTY -->
-
-      <div
-        v-else-if="programs.length === 0"
-        class="mt-10 rounded-2xl bg-white p-12 text-center shadow-sm"
-      >
-        <p class="text-gray-500">Belum ada program.</p>
-
-        <button
-          @click="openAddModal"
-          class="mt-4 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
-        >
-          + Tambah Program
-        </button>
-      </div>
-
-      <!-- PROGRAM LIST -->
-
-      <div v-else class="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <article
-          v-for="program in programs"
-          :key="program.id"
-          class="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
-        >
-          <!-- IMAGE -->
-
-          <div class="aspect-[4/3] overflow-hidden bg-gray-100">
-            <img
-              v-if="program.image_url"
-              :src="program.image_url"
-              :alt="program.title"
-              class="h-full w-full object-cover"
-            />
-
-            <div
-              v-else
-              class="flex h-full items-center justify-center text-sm text-gray-400"
-            >
-              Tidak ada gambar
-            </div>
+          <div
+            v-else
+            class="flex h-full items-center justify-center text-sm text-gray-400"
+          >
+            Tidak ada foto
           </div>
+        </div>
 
-          <!-- CONTENT -->
+        <div class="flex flex-1 flex-col p-5">
+          <span
+            v-if="program.category"
+            class="self-start rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
+          >
+            {{ program.category }}
+          </span>
 
-          <div class="p-6">
-            <span
-              class="text-xs font-semibold uppercase tracking-wider text-emerald-600"
+          <h2 class="mt-2 text-lg font-bold text-gray-900">
+            {{ program.title }}
+          </h2>
+
+          <p class="mt-2 line-clamp-3 flex-1 text-sm leading-6 text-gray-500">
+            {{ program.description }}
+          </p>
+
+          <div class="mt-5 flex gap-2">
+            <button
+              type="button"
+              @click="openEditModal(program)"
+              class="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
             >
-              {{ program.category || "Program" }}
-            </span>
+              <Pencil class="h-4 w-4" />
+              Ubah
+            </button>
 
-            <h3 class="mt-2 text-xl font-bold text-gray-900">
-              {{ program.title }}
-            </h3>
-
-            <p class="mt-3 line-clamp-3 text-sm leading-6 text-gray-600">
-              {{ program.description }}
-            </p>
-
-            <!-- ACTION -->
-
-            <div class="mt-6 flex gap-3">
-              <!-- EDIT -->
-
-              <button
-                @click="openEditModal(program)"
-                class="flex-1 rounded-xl border border-emerald-200 px-4 py-2.5 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50"
-              >
-                Edit
-              </button>
-
-              <!-- DELETE -->
-
-              <button
-                @click="deleteProgram(program)"
-                :disabled="deleting"
-                class="flex-1 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {{ deleting ? "Menghapus..." : "Hapus" }}
-              </button>
-            </div>
+            <button
+              type="button"
+              @click="programDihapus = program"
+              aria-label="Hapus program"
+              class="flex items-center justify-center rounded-xl border border-gray-200 px-3.5 py-2.5 text-gray-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+            >
+              <Trash2 class="h-4 w-4" />
+            </button>
           </div>
-        </article>
-      </div>
-    </main>
+        </div>
+      </article>
+    </div>
 
-    <!-- ========================= -->
-    <!-- MODAL -->
-    <!-- ========================= -->
-
+    <!-- =========================================================
+         FORM TAMBAH / UBAH
+    ========================================================== -->
     <div
       v-if="showModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-5 py-10"
+      class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-6"
       @click.self="closeModal"
     >
       <div
-        class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
+        class="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-white sm:rounded-3xl"
       >
-        <!-- MODAL HEADER -->
-
-        <div class="flex items-start justify-between gap-4">
+        <div
+          class="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-gray-100 bg-white px-6 py-5"
+        >
           <div>
-            <h2 class="text-2xl font-bold text-gray-900">
-              {{ editingProgram ? "Edit Program" : "Tambah Program" }}
+            <h2 class="text-xl font-bold text-gray-900">
+              {{ editingProgram ? "Ubah Program" : "Tambah Program" }}
             </h2>
 
             <p class="mt-1 text-sm text-gray-500">
-              Isi informasi program di bawah.
+              Isi keterangan program, lalu tekan Simpan.
             </p>
           </div>
 
           <button
+            type="button"
             @click="closeModal"
-            class="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl text-gray-500 hover:bg-gray-200"
+            aria-label="Tutup"
+            class="-mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
           >
             ×
           </button>
         </div>
 
-        <!-- FORM -->
+        <form @submit.prevent="saveProgram" class="space-y-5 px-6 py-6">
+          <AdminAlert :error="errorMessage" @dismiss="errorMessage = ''" />
 
-        <form @submit.prevent="saveProgram" class="mt-7 space-y-5">
-          <!-- TITLE -->
-
-          <div>
-            <label class="text-sm font-semibold text-gray-700">
-              Judul Program
-            </label>
-
+          <AdminField
+            v-slot="{ id }"
+            label="Nama program"
+            hint="Nama kegiatan seperti yang biasa disebut sehari-hari."
+            required
+            :value="form.title"
+            :max="60"
+          >
             <input
+              :id="id"
               v-model="form.title"
               type="text"
               required
-              placeholder="Contoh: Program Pendidikan"
-              class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              placeholder="Contoh: Bimbingan Belajar"
+              class="admin-input"
             />
-          </div>
+          </AdminField>
 
-          <!-- CATEGORY -->
-
-          <div>
-            <label class="text-sm font-semibold text-gray-700">
-              Kategori
-            </label>
-
+          <AdminField
+            v-slot="{ id }"
+            label="Kategori"
+            hint="Satu kata pengelompokan, tampil sebagai label kecil di atas nama program."
+            :value="form.category"
+            :max="24"
+          >
             <input
+              :id="id"
               v-model="form.category"
               type="text"
               placeholder="Contoh: Pendidikan"
-              class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              class="admin-input"
             />
-          </div>
+          </AdminField>
 
-          <!-- DESCRIPTION -->
-
-          <div>
-            <label class="text-sm font-semibold text-gray-700">
-              Deskripsi
-            </label>
-
+          <AdminField
+            v-slot="{ id }"
+            label="Penjelasan program"
+            hint="Jelaskan kegiatannya seperti apa dan manfaatnya bagi anak-anak. Cukup 2-3 kalimat."
+            required
+            :value="form.description"
+            :max="300"
+          >
             <textarea
+              :id="id"
               v-model="form.description"
               rows="5"
               required
-              placeholder="Jelaskan program..."
-              class="mt-2 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              placeholder="Contoh: Kegiatan belajar bersama setiap sore untuk membantu anak-anak menyelesaikan tugas sekolah."
+              class="admin-textarea"
             ></textarea>
-          </div>
-
-          <!-- IMAGE -->
+          </AdminField>
 
           <div>
-            <label class="text-sm font-semibold text-gray-700">
-              Foto Program
-            </label>
-
-            <input
-              type="file"
-              accept="image/*"
-              @change="handleImageChange"
-              class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
-              :required="!editingProgram"
-            />
-
-            <p class="mt-2 text-xs text-gray-400">
-              Upload foto dari perangkat admin. File akan otomatis disimpan di
-              Supabase Storage.
+            <p class="text-sm font-semibold text-gray-800">
+              Foto program
+              <span class="text-red-500">*</span>
             </p>
+
+            <AdminImageInput
+              class="mt-2"
+              :preview-url="imagePreviewUrl"
+              :file-name="selectedImageFile?.name || ''"
+              :disabled="saving"
+              hint="Foto kegiatan ini berlangsung. Foto mendatar (landscape) akan tampil paling rapi."
+              aspect="4/3"
+              @select="handleImageSelect"
+              @clear="handleImageClear"
+              @error="errorMessage = $event"
+            />
           </div>
 
-          <div v-if="imagePreviewUrl || form.image_url">
-            <p class="mb-2 text-sm font-semibold text-gray-700">Preview</p>
-
-            <div class="overflow-hidden rounded-2xl bg-gray-100">
-              <img
-                :src="imagePreviewUrl || form.image_url"
-                alt="Preview program"
-                class="max-h-64 w-full object-cover"
-              />
-            </div>
-          </div>
-
-          <!-- ERROR -->
-
-          <div
-            v-if="errorMessage"
-            class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600"
-          >
-            {{ errorMessage }}
-          </div>
-
-          <!-- ACTION -->
-
-          <div class="flex gap-3 pt-2">
+          <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
             <button
               type="button"
               @click="closeModal"
               :disabled="saving"
-              class="flex-1 rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              class="flex-1 rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Batal
             </button>
@@ -666,11 +557,29 @@ onMounted(async () => {
               :disabled="saving"
               class="flex-1 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {{ saving ? "Menyimpan..." : "Simpan" }}
+              {{
+                saving
+                  ? uploading
+                    ? "Mengunggah foto..."
+                    : "Menyimpan..."
+                  : "Simpan"
+              }}
             </button>
           </div>
         </form>
       </div>
     </div>
-  </div>
+
+    <!-- KONFIRMASI HAPUS -->
+    <AdminConfirm
+      :open="Boolean(programDihapus)"
+      danger
+      :busy="deleting"
+      title="Hapus program ini?"
+      :message="`Program &quot;${programDihapus?.title || ''}&quot; akan langsung hilang dari website. Tindakan ini tidak dapat dibatalkan.`"
+      confirm-label="Ya, hapus"
+      @confirm="deleteProgram"
+      @cancel="programDihapus = null"
+    />
+  </AdminPage>
 </template>

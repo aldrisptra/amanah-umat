@@ -1,14 +1,23 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { supabase } from "../lib/supabase";
+import { buildWhatsappUrl } from "../lib/utils";
+import { useSiteIdentity } from "../lib/siteIdentity";
+import SiteLogo from "./SiteLogo.vue";
 
 const contact = ref(null);
+
+const tahunSekarang = new Date().getFullYear();
+
+const { identitas } = useSiteIdentity();
+
+const whatsappUrl = computed(() => buildWhatsappUrl(contact.value?.whatsapp));
 
 const getContact = async () => {
   const { data, error } = await supabase
     .from("contact")
-    .select("address, phone, email")
-    .order("created_at", { ascending: true })
+    .select("address, phone, email, whatsapp")
+    .order("created_at", { ascending: false })
     .limit(1);
 
   if (error) {
@@ -31,18 +40,13 @@ onMounted(() => {
     >
       <!-- Brand -->
       <div>
-        <div class="mb-5 flex items-center gap-3">
-          <div
-            class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 font-bold"
-          >
-            Y
-          </div>
-
-          <span class="text-xl font-bold"> Yayasan </span>
+        <div class="mb-5">
+          <SiteLogo name-class="text-white" />
         </div>
 
         <p class="max-w-sm text-sm leading-7 text-gray-400">
-          Bersama menebar kebaikan dan memberikan manfaat bagi masyarakat.
+          Bersama memberikan kasih sayang, pendidikan, dan kehidupan yang layak
+          bagi anak-anak yatim, piatu, dan dhuafa di Balikpapan.
         </p>
       </div>
 
@@ -96,9 +100,40 @@ onMounted(() => {
         <div class="space-y-3 text-sm text-gray-400">
           <p>{{ contact?.address || "Alamat belum tersedia" }}</p>
 
-          <p>{{ contact?.phone || "Nomor telepon belum tersedia" }}</p>
+          <p>
+            <a
+              v-if="contact?.phone"
+              :href="`tel:${contact.phone}`"
+              class="transition hover:text-white"
+            >
+              {{ contact.phone }}
+            </a>
 
-          <p>{{ contact?.email || "Email belum tersedia" }}</p>
+            <span v-else>Nomor telepon belum tersedia</span>
+          </p>
+
+          <p>
+            <a
+              v-if="contact?.email"
+              :href="`mailto:${contact.email}`"
+              class="transition hover:text-white"
+            >
+              {{ contact.email }}
+            </a>
+
+            <span v-else>Email belum tersedia</span>
+          </p>
+
+          <p v-if="whatsappUrl">
+            <a
+              :href="whatsappUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="transition hover:text-white"
+            >
+              Hubungi via WhatsApp
+            </a>
+          </p>
         </div>
       </div>
     </div>
@@ -107,7 +142,8 @@ onMounted(() => {
     <div class="border-t border-gray-800">
       <div class="mx-auto max-w-7xl px-5 py-6 lg:px-8">
         <p class="text-center text-sm text-gray-500">
-          © 2026 Yayasan. All rights reserved.
+          © {{ tahunSekarang }} {{ identitas.site_name }}. Seluruh hak cipta
+          dilindungi.
         </p>
       </div>
     </div>

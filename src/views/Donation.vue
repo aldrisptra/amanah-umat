@@ -1,19 +1,47 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { supabase } from "../lib/supabase";
+import { buildWhatsappUrl } from "../lib/utils";
 
 const donationInfo = ref(null);
 const loadingDonation = ref(true);
+const salinBerhasil = ref(false);
+
+const whatsappUrl = computed(() =>
+  buildWhatsappUrl(
+    donationInfo.value?.whatsapp_number,
+    "Assalamu'alaikum, saya ingin mengonfirmasi donasi untuk LKSA Amanah Ummat.",
+  ),
+);
+
+/* =========================
+   SALIN NOMOR REKENING
+========================= */
+
+const salinRekening = async () => {
+  const nomor = donationInfo.value?.account_number;
+
+  if (!nomor) return;
+
+  try {
+    await navigator.clipboard.writeText(nomor.replace(/\s/g, ""));
+
+    salinBerhasil.value = true;
+
+    setTimeout(() => {
+      salinBerhasil.value = false;
+    }, 2000);
+  } catch (error) {
+    console.error("Gagal menyalin nomor rekening:", error);
+  }
+};
 
 const getDonationInfo = async () => {
   const { data, error } = await supabase
     .from("donation_info")
     .select("*")
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(1);
-
-  console.log("DONATION DATA:", data);
-  console.log("DONATION ERROR:", error);
 
   if (error) {
     console.error("Gagal mengambil data donasi:", error);
@@ -35,7 +63,7 @@ onMounted(() => {
          HERO
     ========================== -->
     <section class="bg-emerald-50">
-      <div class="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-24">
+      <div class="mx-auto max-w-7xl px-5 pb-20 pt-32 lg:px-8 lg:pb-24 lg:pt-40">
         <div class="mx-auto max-w-3xl text-center">
           <span
             class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
@@ -63,7 +91,7 @@ onMounted(() => {
     <section class="bg-white py-20">
       <div class="mx-auto grid max-w-6xl gap-10 px-5 lg:grid-cols-2 lg:px-8">
         <!-- LEFT -->
-        <div>
+        <div v-reveal="{ arah: 'kiri' }">
           <span
             class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
           >
@@ -82,7 +110,7 @@ onMounted(() => {
 
           <!-- Benefits -->
           <div class="mt-8 space-y-5">
-            <div class="flex gap-4">
+            <div v-reveal="{ delay: 80 }" class="flex gap-4">
               <div
                 class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-600"
               >
@@ -98,7 +126,7 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="flex gap-4">
+            <div v-reveal="{ delay: 160 }" class="flex gap-4">
               <div
                 class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-600"
               >
@@ -114,7 +142,7 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="flex gap-4">
+            <div v-reveal="{ delay: 240 }" class="flex gap-4">
               <div
                 class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-600"
               >
@@ -133,7 +161,10 @@ onMounted(() => {
         </div>
 
         <!-- RIGHT -->
-        <div class="rounded-3xl bg-gray-50 p-6 sm:p-8">
+        <div
+          v-reveal="{ arah: 'kanan' }"
+          class="rounded-3xl bg-gray-50 p-6 shadow-sm ring-1 ring-gray-100 sm:p-8"
+        >
           <h2 class="text-2xl font-bold text-gray-900">Rekening Donasi</h2>
 
           <p class="mt-2 text-sm leading-6 text-gray-600">
@@ -141,11 +172,19 @@ onMounted(() => {
           </p>
 
           <!-- Loading -->
-          <div
-            v-if="loadingDonation"
-            class="mt-7 rounded-2xl bg-white p-8 text-center shadow-sm"
-          >
-            <p class="text-sm text-gray-500">Memuat informasi donasi...</p>
+          <div v-if="loadingDonation" class="mt-7 space-y-5">
+            <div class="space-y-3 rounded-2xl bg-white p-6 shadow-sm">
+              <div class="skeleton h-3 w-14"></div>
+              <div class="skeleton h-6 w-40"></div>
+              <div class="skeleton mt-4 h-3 w-28"></div>
+              <div class="skeleton h-8 w-56"></div>
+              <div class="skeleton h-3 w-36"></div>
+            </div>
+
+            <div class="rounded-2xl bg-white p-6 text-center shadow-sm">
+              <div class="skeleton mx-auto h-4 w-40"></div>
+              <div class="skeleton mx-auto mt-5 h-52 w-52 rounded-2xl"></div>
+            </div>
           </div>
 
           <!-- Donation Info -->
@@ -162,9 +201,20 @@ onMounted(() => {
                 NOMOR REKENING
               </p>
 
-              <p class="mt-1 text-2xl font-bold tracking-wide text-emerald-600">
-                {{ donationInfo.account_number }}
-              </p>
+              <div class="mt-1 flex flex-wrap items-center gap-3">
+                <p class="text-2xl font-bold tracking-wide text-emerald-600">
+                  {{ donationInfo.account_number }}
+                </p>
+
+                <button
+                  v-if="donationInfo.account_number"
+                  type="button"
+                  @click="salinRekening"
+                  class="rounded-full border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
+                >
+                  {{ salinBerhasil ? "Tersalin ✓" : "Salin" }}
+                </button>
+              </div>
 
               <p class="mt-3 text-sm text-gray-600">
                 a.n. {{ donationInfo.account_name }}
@@ -182,6 +232,7 @@ onMounted(() => {
                 <img
                   :src="donationInfo.qris_url"
                   alt="QRIS Donasi Amanah Ummat"
+                  loading="lazy"
                   class="h-full w-full object-contain"
                 />
               </div>
@@ -216,7 +267,7 @@ onMounted(() => {
          CONFIRMATION
     ========================== -->
     <section class="bg-gray-50 py-20">
-      <div class="mx-auto max-w-3xl px-5 text-center lg:px-8">
+      <div v-reveal class="mx-auto max-w-3xl px-5 text-center lg:px-8">
         <span
           class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
         >
@@ -233,8 +284,8 @@ onMounted(() => {
         </p>
 
         <a
-          v-if="donationInfo?.whatsapp_number"
-          :href="`https://wa.me/${donationInfo.whatsapp_number}`"
+          v-if="whatsappUrl"
+          :href="whatsappUrl"
           target="_blank"
           rel="noopener noreferrer"
           class="mt-8 inline-flex rounded-full bg-emerald-600 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
@@ -255,6 +306,7 @@ onMounted(() => {
     <section class="bg-white py-20">
       <div class="mx-auto max-w-7xl px-5 lg:px-8">
         <div
+          v-reveal
           class="rounded-3xl border border-emerald-100 bg-emerald-50 p-8 sm:p-10"
         >
           <div class="max-w-3xl">

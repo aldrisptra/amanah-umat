@@ -1,11 +1,20 @@
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
+import { CircleCheck, CircleAlert } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
+import AdminPage from "../components/admin/AdminPage.vue";
+import AdminCard from "../components/admin/AdminCard.vue";
+import AdminField from "../components/admin/AdminField.vue";
+import AdminSaveBar from "../components/admin/AdminSaveBar.vue";
+import AdminAlert from "../components/admin/AdminAlert.vue";
+import { normalizeWhatsapp } from "../lib/utils";
+import { useUnsavedChanges } from "../lib/useUnsavedChanges";
 
 const contact = ref(null);
 const loading = ref(true);
 const saving = ref(false);
 const errorMessage = ref("");
+const successMessage = ref("");
 
 const form = reactive({
   address: "",
@@ -13,6 +22,19 @@ const form = reactive({
   whatsapp: "",
   email: "",
 });
+
+// Salinan nilai awal, dipakai untuk mengetahui apakah ada perubahan.
+// Harus berupa ref: computed di bawah membacanya, dan Vue hanya melacak
+// perubahan pada nilai reaktif.
+const nilaiAwal = ref(JSON.stringify(form));
+
+const adaPerubahan = computed(() => JSON.stringify(form) !== nilaiAwal.value);
+
+useUnsavedChanges(adaPerubahan);
+
+// Tampilkan hasil konversi nomor supaya pengurus tahu tautan WhatsApp yang
+// akan dipakai website. wa.me menolak format "0812...".
+const whatsappPreview = computed(() => normalizeWhatsapp(form.whatsapp));
 
 const resetForm = () => {
   form.address = "";
@@ -29,7 +51,7 @@ const getContact = async () => {
     const { data, error } = await supabase
       .from("contact")
       .select("*")
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(1);
 
     if (error) {
@@ -47,6 +69,8 @@ const getContact = async () => {
     } else {
       resetForm();
     }
+
+    nilaiAwal.value = JSON.stringify(form);
   } catch (error) {
     console.error("Gagal mengambil data kontak:", error);
     errorMessage.value = error.message || "Gagal mengambil data kontak.";
@@ -58,8 +82,15 @@ const getContact = async () => {
 const saveContact = async () => {
   if (saving.value) return;
 
+  if (form.whatsapp.trim() && !normalizeWhatsapp(form.whatsapp)) {
+    errorMessage.value =
+      "Nomor WhatsApp tidak valid. Gunakan format 08xxxxxxxxxx atau 628xxxxxxxxxx.";
+    return;
+  }
+
   saving.value = true;
   errorMessage.value = "";
+  successMessage.value = "";
 
   try {
     const payload = {
@@ -78,7 +109,28 @@ const saveContact = async () => {
         .eq("id", contact.value.id)
         .select();
     } else {
-      result = await supabase.from("contact").insert(payload).select();
+      // Sebelum menyisipkan baris baru, pastikan tabel memang masih kosong.
+      // Tanpa pemeriksaan ini, satu kali gagal memuat data akan membuat
+      // baris kontak ganda dan website bisa menampilkan data yang lama.
+      const { data: existing, error: cekError } = await supabase
+        .from("contact")
+        .select("id")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (cekError) {
+        throw cekError;
+      }
+
+      if (existing?.length) {
+        result = await supabase
+          .from("contact")
+          .update(payload)
+          .eq("id", existing[0].id)
+          .select();
+      } else {
+        result = await supabase.from("contact").insert(payload).select();
+      }
     }
 
     if (result.error) {
@@ -86,6 +138,8 @@ const saveContact = async () => {
     }
 
     await getContact();
+
+    successMessage.value = "Data kontak berhasil disimpan.";
   } catch (error) {
     console.error("Gagal menyimpan kontak:", error);
     errorMessage.value = error.message || "Gagal menyimpan data kontak.";
@@ -94,121 +148,131 @@ const saveContact = async () => {
   }
 };
 
-onMounted(() => {
-  getContact();
-});
+onMounted(getContact);
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <header class="border-b border-gray-200 bg-white">
-      <div
-        class="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8"
-      >
-        <div>
-          <p
-            class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600"
+  <AdminPage
+    title="Kontak"
+    description="Alamat dan nomor yang dapat dihubungi. Data ini tampil di halaman Kontak sekaligus di bagian bawah setiap halaman website."
+    public-path="/kontak"
+  >
+    <div
+      v-if="loading"
+      class="rounded-2xl border border-gray-200 bg-white py-20 text-center text-sm text-gray-500"
+    >
+      Memuat data kontak...
+    </div>
+
+    <form v-else @submit.prevent="saveContact">
+      <AdminAlert
+        :error="errorMessage"
+        :success="successMessage"
+        @dismiss="
+          errorMessage = '';
+          successMessage = '';
+        "
+      />
+
+      <div class="space-y-5">
+        <AdminCard
+          step="1"
+          title="Alamat yayasan"
+          description="Alamat lengkap yang akan dibaca calon donatur dan tamu."
+        >
+          <AdminField
+            v-slot="{ id }"
+            label="Alamat"
+            hint="Tulis lengkap sampai kota dan provinsi. Boleh dibuat beberapa baris."
+            :value="form.address"
           >
-            Admin Panel
-          </p>
-          <h1 class="mt-1 text-2xl font-bold text-gray-900">Kelola Kontak</h1>
-        </div>
-
-        <router-link
-          to="/admin"
-          class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
-        >
-          ← Dashboard
-        </router-link>
-      </div>
-    </header>
-
-    <main class="mx-auto max-w-4xl px-5 py-8 lg:px-8">
-      <div
-        class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8"
-      >
-        <div class="mb-6 flex items-center justify-between gap-3">
-          <div>
-            <h2 class="text-xl font-bold text-gray-900">Data Kontak Website</h2>
-            <p class="mt-1 text-sm text-gray-500">
-              Atur alamat, nomor telepon, WhatsApp, dan email.
-            </p>
-          </div>
-        </div>
-
-        <div
-          v-if="errorMessage"
-          class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"
-        >
-          {{ errorMessage }}
-        </div>
-
-        <form v-if="!loading" @submit.prevent="saveContact" class="space-y-5">
-          <div>
-            <label class="mb-2 block text-sm font-semibold text-gray-700"
-              >Alamat</label
-            >
             <textarea
+              :id="id"
               v-model="form.address"
               rows="4"
-              class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-gray-700 outline-none transition focus:border-emerald-500"
-              placeholder="Masukkan alamat lengkap"
-            />
-          </div>
+              placeholder="Jl. Sepaku, RT.17 No.8, Baru Tengah, Kec. Balikpapan Barat, Kota Balikpapan, Kalimantan Timur"
+              class="admin-textarea"
+            ></textarea>
+          </AdminField>
+        </AdminCard>
 
+        <AdminCard
+          step="2"
+          title="Nomor yang bisa dihubungi"
+          description="Pastikan nomor ini aktif — inilah jalur utama calon donatur menghubungi yayasan."
+        >
           <div class="grid gap-5 sm:grid-cols-2">
-            <div>
-              <label class="mb-2 block text-sm font-semibold text-gray-700"
-                >Telepon</label
-              >
+            <AdminField
+              v-slot="{ id }"
+              label="Nomor telepon"
+              hint="Untuk ditelepon langsung. Boleh nomor rumah atau HP."
+              :value="form.phone"
+            >
               <input
+                :id="id"
                 v-model="form.phone"
                 type="text"
-                class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-gray-700 outline-none transition focus:border-emerald-500"
-                placeholder="08xxxxxxxxxx"
+                inputmode="numeric"
+                placeholder="08123456789"
+                class="admin-input"
               />
-            </div>
+            </AdminField>
 
-            <div>
-              <label class="mb-2 block text-sm font-semibold text-gray-700"
-                >WhatsApp</label
-              >
+            <AdminField
+              v-slot="{ id }"
+              label="Nomor WhatsApp"
+              hint="Boleh ditulis mulai 08. Sistem otomatis mengubahnya ke format internasional."
+              :value="form.whatsapp"
+            >
               <input
+                :id="id"
                 v-model="form.whatsapp"
                 type="text"
-                class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-gray-700 outline-none transition focus:border-emerald-500"
-                placeholder="628123456789"
+                inputmode="numeric"
+                placeholder="08123456789"
+                class="admin-input"
               />
-            </div>
+
+              <p
+                v-if="whatsappPreview"
+                class="mt-2 flex items-center gap-1.5 text-xs text-emerald-700"
+              >
+                <CircleCheck class="h-3.5 w-3.5 shrink-0" />
+                Tautan yang dipakai website: wa.me/{{ whatsappPreview }}
+              </p>
+
+              <p
+                v-else-if="form.whatsapp"
+                class="mt-2 flex items-center gap-1.5 text-xs text-red-600"
+              >
+                <CircleAlert class="h-3.5 w-3.5 shrink-0" />
+                Nomor belum benar. Contoh yang benar: 08123456789
+              </p>
+            </AdminField>
           </div>
 
-          <div>
-            <label class="mb-2 block text-sm font-semibold text-gray-700"
-              >Email</label
-            >
+          <AdminField
+            v-slot="{ id }"
+            label="Email"
+            hint="Alamat email resmi yayasan untuk surat-menyurat."
+            :value="form.email"
+          >
             <input
+              :id="id"
               v-model="form.email"
               type="email"
-              class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-gray-700 outline-none transition focus:border-emerald-500"
-              placeholder="contoh@email.com"
+              placeholder="amanahummat@email.com"
+              class="admin-input"
             />
-          </div>
-
-          <div class="flex items-center justify-end pt-2">
-            <button
-              type="submit"
-              :disabled="saving"
-              class="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-            >
-              {{ saving ? "Menyimpan..." : "Simpan Kontak" }}
-            </button>
-          </div>
-        </form>
-
-        <div v-else class="py-10 text-center text-sm text-gray-500">
-          Memuat data kontak...
-        </div>
+          </AdminField>
+        </AdminCard>
       </div>
-    </main>
-  </div>
+
+      <AdminSaveBar
+        :dirty="adaPerubahan"
+        :saving="saving"
+        label="Simpan Kontak"
+      />
+    </form>
+  </AdminPage>
 </template>

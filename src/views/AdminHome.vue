@@ -1,6 +1,14 @@
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { supabase } from "../lib/supabase";
+import AdminPage from "../components/admin/AdminPage.vue";
+import AdminCard from "../components/admin/AdminCard.vue";
+import AdminField from "../components/admin/AdminField.vue";
+import AdminImageInput from "../components/admin/AdminImageInput.vue";
+import AdminSaveBar from "../components/admin/AdminSaveBar.vue";
+import AdminAlert from "../components/admin/AdminAlert.vue";
+import { buildStorageFileName } from "../lib/utils";
+import { useUnsavedChanges } from "../lib/useUnsavedChanges";
 
 const loading = ref(true);
 const saving = ref(false);
@@ -22,22 +30,41 @@ const form = reactive({
   cta_description: "",
 });
 
+// Salinan nilai awal, dipakai untuk mengetahui apakah ada perubahan.
+// Harus berupa ref: computed di bawah membacanya, dan Vue hanya melacak
+// perubahan pada nilai reaktif.
+const nilaiAwal = ref(JSON.stringify(form));
+
+const adaPerubahan = computed(
+  () => JSON.stringify(form) !== nilaiAwal.value || Boolean(selectedImageFile.value),
+);
+
+useUnsavedChanges(adaPerubahan);
+
+// URL pratinjau lokal harus dibebaskan agar tidak menumpuk di memori
+const revokePreview = () => {
+  if (imagePreviewUrl.value.startsWith("blob:")) {
+    URL.revokeObjectURL(imagePreviewUrl.value);
+  }
+};
+
+onBeforeUnmount(revokePreview);
+
 /* =========================
-   GET HOME CONTENT
+   AMBIL DATA
 ========================= */
 const getHomeContent = async () => {
   loading.value = true;
   errorMessage.value = "";
 
+  // Memakai .limit(1) alih-alih .single(): .single() menghasilkan error
+  // ketika tabel masih kosong, padahal kondisi itu wajar pada pemasangan
+  // baru dan seharusnya membiarkan admin mengisi form untuk pertama kali.
   const { data, error } = await supabase
     .from("home_content")
     .select("*")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .single();
-
-  console.log("HOME DATA:", data);
-  console.log("HOME ERROR:", error);
+    .order("created_at", { ascending: false })
+    .limit(1);
 
   if (error) {
     console.error("Gagal mengambil data beranda:", error);
@@ -46,72 +73,54 @@ const getHomeContent = async () => {
     return;
   }
 
-  homeContent.value = data;
+  const record = data?.[0] || null;
 
-  form.hero_title = data.hero_title || "";
-  form.hero_description = data.hero_description || "";
-  form.hero_image_url = data.hero_image_url || "";
-  form.cta_title = data.cta_title || "";
-  form.cta_description = data.cta_description || "";
+  homeContent.value = record;
+
+  form.hero_title = record?.hero_title || "";
+  form.hero_description = record?.hero_description || "";
+  form.hero_image_url = record?.hero_image_url || "";
+  form.cta_title = record?.cta_title || "";
+  form.cta_description = record?.cta_description || "";
+
+  revokePreview();
+  imagePreviewUrl.value = form.hero_image_url;
+
+  nilaiAwal.value = JSON.stringify(form);
 
   loading.value = false;
 };
 
 /* =========================
-   HANDLE IMAGE
+   FOTO
 ========================= */
-const handleImageChange = (event) => {
-  const file = event.target.files?.[0];
-
-  if (!file) return;
-
-  // Cek file harus gambar
-  if (!file.type.startsWith("image/")) {
-    errorMessage.value = "File yang dipilih harus berupa gambar.";
-    selectedImageFile.value = null;
-    imagePreviewUrl.value = "";
-    return;
-  }
-
-  // Maksimal 5 MB
-  if (file.size > 5 * 1024 * 1024) {
-    errorMessage.value = "Ukuran foto maksimal 5 MB.";
-    selectedImageFile.value = null;
-    imagePreviewUrl.value = "";
-    return;
-  }
-
+const handleImageSelect = (file) => {
   errorMessage.value = "";
   successMessage.value = "";
 
-  selectedImageFile.value = file;
+  revokePreview();
 
-  // Preview foto baru
+  selectedImageFile.value = file;
   imagePreviewUrl.value = URL.createObjectURL(file);
 };
 
-/* =========================
-   UPLOAD IMAGE
-========================= */
+const handleImageClear = () => {
+  revokePreview();
+
+  selectedImageFile.value = null;
+  imagePreviewUrl.value = form.hero_image_url;
+};
+
 const uploadImageFile = async (file) => {
   if (!file) return form.hero_image_url;
 
   uploading.value = true;
 
-  const fileExt = file.name.split(".").pop() || "png";
-
-  const fileName = `hero-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2)}.${fileExt}`;
-
-  const filePath = `home/${fileName}`;
+  const filePath = `home/${buildStorageFileName(file, "hero-")}`;
 
   const { data, error } = await supabase.storage
     .from("images")
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
+    .upload(filePath, file, { cacheControl: "3600", upsert: false });
 
   if (error) {
     uploading.value = false;
@@ -128,10 +137,10 @@ const uploadImageFile = async (file) => {
 };
 
 /* =========================
-   SAVE HOME
+   SIMPAN
 ========================= */
 const saveHome = async () => {
-  if (!homeContent.value) return;
+  if (saving.value) return;
 
   saving.value = true;
   errorMessage.value = "";
@@ -140,47 +149,43 @@ const saveHome = async () => {
   try {
     let uploadedImageUrl = form.hero_image_url;
 
-    // Upload foto jika admin memilih foto baru
     if (selectedImageFile.value) {
       uploadedImageUrl = await uploadImageFile(selectedImageFile.value);
     }
 
     const payload = {
-      hero_title: form.hero_title,
-      hero_description: form.hero_description,
+      hero_title: form.hero_title.trim(),
+      hero_description: form.hero_description.trim(),
       hero_image_url: uploadedImageUrl,
-      cta_title: form.cta_title,
-      cta_description: form.cta_description,
+      cta_title: form.cta_title.trim(),
+      cta_description: form.cta_description.trim(),
       updated_at: new Date().toISOString(),
     };
 
-    console.log("HOME PAYLOAD:", payload);
+    let result;
 
-    const { data, error } = await supabase
-      .from("home_content")
-      .update(payload)
-      .eq("id", homeContent.value.id)
-      .select();
-
-    if (error) {
-      throw error;
+    if (homeContent.value?.id) {
+      result = await supabase
+        .from("home_content")
+        .update(payload)
+        .eq("id", homeContent.value.id)
+        .select();
+    } else {
+      // Belum ada baris konten beranda (pemasangan baru) -> buatkan.
+      result = await supabase.from("home_content").insert(payload).select();
     }
 
-    console.log("BERANDA BERHASIL DISIMPAN:", data);
+    if (result.error) {
+      throw result.error;
+    }
 
     form.hero_image_url = uploadedImageUrl;
-
     selectedImageFile.value = null;
 
-    if (imagePreviewUrl.value) {
-      URL.revokeObjectURL(imagePreviewUrl.value);
-    }
-
-    imagePreviewUrl.value = "";
-
-    successMessage.value = "Perubahan beranda berhasil disimpan.";
-
     await getHomeContent();
+
+    successMessage.value =
+      "Halaman depan berhasil diperbarui. Silakan periksa hasilnya lewat tombol Lihat di website.";
   } catch (error) {
     console.error("GAGAL MENYIMPAN BERANDA:", error);
 
@@ -191,198 +196,146 @@ const saveHome = async () => {
   }
 };
 
-onMounted(() => {
-  getHomeContent();
-});
+onMounted(getHomeContent);
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <!-- HEADER -->
-    <div class="border-b bg-white">
-      <div
-        class="mx-auto flex max-w-7xl items-center justify-between px-5 py-6 lg:px-8"
-      >
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900">Kelola Beranda</h1>
-
-          <p class="mt-1 text-sm text-gray-500">
-            Kelola tampilan utama halaman beranda Amanah Ummat.
-          </p>
-        </div>
-
-        <router-link
-          to="/admin"
-          class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
-        >
-          ← Dashboard
-        </router-link>
-      </div>
+  <AdminPage
+    title="Halaman Depan"
+    description="Bagian paling pertama yang dilihat pengunjung saat membuka website: foto besar dengan tulisan di atasnya, serta kotak ajakan berdonasi di bagian bawah."
+    public-path="/"
+  >
+    <!-- MEMUAT -->
+    <div
+      v-if="loading"
+      class="rounded-2xl border border-gray-200 bg-white py-20 text-center text-sm text-gray-500"
+    >
+      Memuat isi halaman depan...
     </div>
 
-    <!-- CONTENT -->
-    <main class="mx-auto max-w-5xl px-5 py-8 lg:px-8">
-      <!-- LOADING -->
-      <div
-        v-if="loading"
-        class="rounded-2xl bg-white py-20 text-center text-gray-500 shadow-sm"
-      >
-        Memuat beranda...
-      </div>
+    <form v-else @submit.prevent="saveHome">
+      <AdminAlert
+        :error="errorMessage"
+        :success="successMessage"
+        @dismiss="
+          errorMessage = '';
+          successMessage = '';
+        "
+      />
 
-      <!-- FORM -->
-      <form v-else @submit.prevent="saveHome" class="space-y-6">
-        <!-- HERO -->
-        <section class="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
-          <div class="mb-7">
-            <h2 class="text-xl font-bold text-gray-900">Hero Beranda</h2>
-
-            <p class="mt-1 text-sm text-gray-500">
-              Bagian utama yang pertama kali dilihat pengunjung website.
-            </p>
-          </div>
-
-          <!-- TITLE -->
-          <div class="mb-5">
-            <label class="text-sm font-semibold text-gray-700">
-              Judul Hero
-            </label>
-
+      <div class="space-y-5">
+        <!-- =====================================================
+             1. TAMPILAN PALING ATAS
+        ====================================================== -->
+        <AdminCard
+          step="1"
+          title="Tampilan paling atas"
+          description="Foto besar satu layar penuh beserta tulisan di atasnya. Inilah kesan pertama pengunjung terhadap yayasan."
+        >
+          <AdminField
+            v-slot="{ id }"
+            label="Judul besar"
+            hint="Tulisan paling besar di tengah foto. Sebaiknya singkat, cukup nama yayasan."
+            required
+            :value="form.hero_title"
+            :max="40"
+          >
             <input
+              :id="id"
               v-model="form.hero_title"
               type="text"
+              required
               placeholder="Contoh: Amanah Ummat"
-              class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              required
+              class="admin-input"
             />
-          </div>
+          </AdminField>
 
-          <!-- DESCRIPTION -->
-          <div class="mb-5">
-            <label class="text-sm font-semibold text-gray-700">
-              Deskripsi Hero
-            </label>
-
+          <AdminField
+            v-slot="{ id }"
+            label="Kalimat pengantar"
+            hint="Satu sampai dua kalimat di bawah judul yang menjelaskan siapa Amanah Ummat dan untuk siapa."
+            required
+            :value="form.hero_description"
+            :max="200"
+          >
             <textarea
+              :id="id"
               v-model="form.hero_description"
-              rows="5"
-              placeholder="Masukkan deskripsi singkat tentang Amanah Ummat."
-              class="mt-2 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              rows="4"
               required
+              placeholder="Contoh: Memberikan kasih sayang, pendidikan, dan kehidupan yang layak bagi anak-anak yatim, piatu, dan dhuafa di Balikpapan."
+              class="admin-textarea"
             ></textarea>
-          </div>
+          </AdminField>
 
-          <!-- IMAGE FILE -->
           <div>
-            <label class="text-sm font-semibold text-gray-700">
-              Foto Background Hero
-            </label>
+            <p class="text-sm font-semibold text-gray-800">Foto latar</p>
 
-            <input
-              type="file"
-              accept="image/*"
-              @change="handleImageChange"
-              class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+            <AdminImageInput
+              class="mt-2"
+              :preview-url="imagePreviewUrl"
+              :file-name="selectedImageFile?.name || ''"
+              :disabled="saving"
+              hint="Foto yang memenuhi seluruh layar di bagian paling atas. Pilih foto mendatar (landscape) yang terang. Tulisan akan tampil di tengah foto, jadi sebaiknya bagian tengah foto tidak terlalu ramai."
+              aspect="16/9"
+              @select="handleImageSelect"
+              @clear="handleImageClear"
+              @error="errorMessage = $event"
             />
-
-            <p class="mt-2 text-xs text-gray-400">
-              Upload foto dari perangkat admin. Format JPG, JPEG, PNG, atau
-              WebP. Maksimal 5 MB.
-            </p>
           </div>
+        </AdminCard>
 
-          <!-- PREVIEW -->
-          <div v-if="imagePreviewUrl || form.hero_image_url" class="mt-6">
-            <p class="mb-2 text-sm font-semibold text-gray-700">Preview Foto</p>
-
-            <div class="overflow-hidden rounded-2xl bg-gray-100">
-              <img
-                :src="imagePreviewUrl || form.hero_image_url"
-                alt="Preview background hero"
-                class="h-72 w-full object-cover"
-              />
-            </div>
-
-            <p v-if="imagePreviewUrl" class="mt-2 text-xs text-emerald-600">
-              Foto baru dipilih. Klik Simpan untuk menerapkannya.
-            </p>
-          </div>
-        </section>
-
-        <!-- CTA -->
-        <section class="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
-          <div class="mb-7">
-            <h2 class="text-xl font-bold text-gray-900">Call to Action</h2>
-
-            <p class="mt-1 text-sm text-gray-500">
-              Bagian ajakan donasi di bagian bawah halaman beranda.
-            </p>
-          </div>
-
-          <!-- CTA TITLE -->
-          <div class="mb-5">
-            <label class="text-sm font-semibold text-gray-700">
-              Judul CTA
-            </label>
-
+        <!-- =====================================================
+             2. AJAKAN BERDONASI
+        ====================================================== -->
+        <AdminCard
+          step="2"
+          title="Ajakan berdonasi"
+          description="Kotak hijau di bagian paling bawah halaman depan, berisi ajakan untuk ikut membantu."
+        >
+          <AdminField
+            v-slot="{ id }"
+            label="Judul ajakan"
+            hint="Kalimat utama pada kotak hijau. Buat mengajak, bukan memerintah."
+            required
+            :value="form.cta_title"
+            :max="90"
+          >
             <input
+              :id="id"
               v-model="form.cta_title"
               type="text"
+              required
               placeholder="Contoh: Mari ikut mendukung perjalanan anak-anak Amanah Ummat."
-              class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              required
+              class="admin-input"
             />
-          </div>
+          </AdminField>
 
-          <!-- CTA DESCRIPTION -->
-          <div>
-            <label class="text-sm font-semibold text-gray-700">
-              Deskripsi CTA
-            </label>
-
-            <textarea
-              v-model="form.cta_description"
-              rows="5"
-              placeholder="Masukkan deskripsi ajakan donasi."
-              class="mt-2 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              required
-            ></textarea>
-          </div>
-        </section>
-
-        <!-- ERROR -->
-        <div
-          v-if="errorMessage"
-          class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600"
-        >
-          {{ errorMessage }}
-        </div>
-
-        <!-- SUCCESS -->
-        <div
-          v-if="successMessage"
-          class="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
-        >
-          {{ successMessage }}
-        </div>
-
-        <!-- BUTTON -->
-        <div class="flex justify-end">
-          <button
-            type="submit"
-            :disabled="saving"
-            class="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          <AdminField
+            v-slot="{ id }"
+            label="Penjelasan ajakan"
+            hint="Kalimat pendukung di bawah judul ajakan. Jelaskan donasi akan dipakai untuk apa."
+            required
+            :value="form.cta_description"
+            :max="200"
           >
-            {{
-              saving
-                ? uploading
-                  ? "Mengupload foto..."
-                  : "Menyimpan..."
-                : "Simpan Perubahan"
-            }}
-          </button>
-        </div>
-      </form>
-    </main>
-  </div>
+            <textarea
+              :id="id"
+              v-model="form.cta_description"
+              rows="4"
+              required
+              placeholder="Contoh: Dukungan Anda membantu memenuhi kebutuhan harian dan pendidikan anak-anak LKSA Amanah Ummat."
+              class="admin-textarea"
+            ></textarea>
+          </AdminField>
+        </AdminCard>
+      </div>
+
+      <AdminSaveBar
+        :dirty="adaPerubahan"
+        :saving="saving"
+        :busy-label="uploading ? 'Mengunggah foto...' : ''"
+      />
+    </form>
+  </AdminPage>
 </template>

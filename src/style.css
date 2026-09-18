@@ -1,1 +1,154 @@
 @import "tailwindcss";
+
+/* =========================================================
+   GAYA ISIAN FORM PANEL ADMIN
+
+   Dikumpulkan di satu tempat agar seluruh halaman pengelolaan
+   memiliki bentuk, ukuran sentuh, dan warna fokus yang sama.
+   Tinggi minimum 44px mengikuti ukuran sentuh nyaman di ponsel.
+========================================================= */
+
+@layer components {
+  .admin-input {
+    @apply w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition;
+    @apply placeholder:text-gray-400;
+    @apply focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100;
+    @apply disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500;
+  }
+
+  .admin-textarea {
+    @apply w-full resize-y rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm leading-6 text-gray-900 outline-none transition;
+    @apply placeholder:text-gray-400;
+    @apply focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100;
+  }
+
+  .admin-select {
+    @apply w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition;
+    @apply focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100;
+  }
+}
+
+/* =========================================================
+   ANIMASI WEBSITE PUBLIK
+
+   Aturan utama: seluruh animasi hanya memakai `transform` dan
+   `opacity`. Keduanya dikerjakan kartu grafis, sehingga tetap
+   mulus di ponsel kelas menengah. Menganimasikan properti lain
+   (width, top, margin) memaksa browser menghitung ulang tata
+   letak pada setiap bingkai dan membuat gerakan tersendat.
+========================================================= */
+
+@layer components {
+  /* ---- Muncul saat tergulir ke layar (directive v-reveal) ---- */
+
+  .reveal {
+    opacity: 0;
+    transition:
+      opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+  }
+
+  .reveal-dari-bawah {
+    transform: translateY(28px);
+  }
+
+  .reveal-dari-kiri {
+    transform: translateX(-28px);
+  }
+
+  .reveal-dari-kanan {
+    transform: translateX(28px);
+  }
+
+  .reveal-dari-bawah.reveal-tampil,
+  .reveal-dari-kiri.reveal-tampil,
+  .reveal-dari-kanan.reveal-tampil {
+    opacity: 1;
+    transform: translate(0, 0);
+    will-change: auto;
+  }
+
+  /* Dipakai saat animasi dimatikan pengguna: tampil apa adanya */
+  .reveal-tampil {
+    opacity: 1;
+  }
+
+  /* ---- Rangka pemuatan (skeleton) ---- */
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-xl bg-gray-200/70;
+  }
+
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / 0.65),
+      transparent
+    );
+    animation: kilau 1.6s infinite;
+  }
+
+  @keyframes kilau {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+}
+
+/* =========================================================
+   DASAR HALAMAN
+========================================================= */
+
+html {
+  scroll-behavior: smooth;
+
+  /* Navbar mengambang menutupi bagian atas layar; tanpa ini, tautan
+     menuju bagian tertentu akan mendarat tepat di balik navbar. */
+  scroll-padding-top: 6rem;
+}
+
+/* Cincin fokus yang jelas untuk pengguna keyboard, tanpa mengganggu
+   pengguna tetikus. */
+:focus-visible {
+  outline: 2px solid theme(--color-emerald-600);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background-color: theme(--color-emerald-600);
+  color: white;
+}
+
+/* =========================================================
+   HORMATI PENGATURAN PENGGUNA
+
+   Bila perangkat disetel mengurangi gerakan, seluruh animasi
+   dimatikan - termasuk yang ditulis langsung di komponen.
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
