@@ -7,6 +7,7 @@ import {
   Milestone,
   Phone,
   Sparkles,
+  Trophy,
 } from "lucide-vue-next";
 
 /**
@@ -78,6 +79,16 @@ export const ADMIN_MENU = [
     summary: { table: "gallery", kind: "list", unit: "foto" },
   },
   {
+    to: "/admin/prestasi",
+    label: "Prestasi",
+    icon: Trophy,
+    color: "yellow",
+    publicPath: "/prestasi",
+    description:
+      "Penghargaan dan capaian anak asuh maupun lembaga yang tampil di halaman Prestasi.",
+    summary: { table: "achievements", kind: "list", unit: "prestasi" },
+  },
+  {
     to: "/admin/contact",
     label: "Kontak",
     icon: Phone,
@@ -110,5 +121,6 @@ export const MENU_COLORS = {
   sky: "bg-sky-100 text-sky-700",
   violet: "bg-violet-100 text-violet-700",
   amber: "bg-amber-100 text-amber-700",
+  yellow: "bg-yellow-100 text-yellow-700",
   rose: "bg-rose-100 text-rose-700",
 };

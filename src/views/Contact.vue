@@ -1,7 +1,9 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
+import { MapPin } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
 import { buildWhatsappUrl } from "../lib/utils";
+import { buatEmbedPeta, buatTautanPeta } from "../lib/mapLocation";
 
 const contact = ref(null);
 const loadingContact = ref(true);
@@ -18,18 +20,18 @@ const whatsappUrl = computed(() =>
   ),
 );
 
-// Gunakan titik koordinat dari CMS bila tersedia, agar peta ikut ter-update
-// ketika alamat yayasan berubah.
-const mapEmbedUrl = computed(() => {
-  const lat = contact.value?.latitude;
-  const lng = contact.value?.longitude;
+// Titik lokasi diatur pengurus lewat panel admin. Bila belum diisi, peta
+// jatuh ke titik bawaan agar halaman Kontak tidak pernah tampil tanpa peta.
+const mapEmbedUrl = computed(
+  () =>
+    buatEmbedPeta(contact.value?.latitude, contact.value?.longitude) ||
+    fallbackMapEmbedUrl,
+);
 
-  if (typeof lat === "number" && typeof lng === "number") {
-    return `https://maps.google.com/maps?q=${lat},${lng}&z=17&hl=id&output=embed`;
-  }
-
-  return fallbackMapEmbedUrl;
-});
+// Tombol menuju aplikasi peta, supaya pengunjung bisa langsung mencari rute
+const mapLinkUrl = computed(() =>
+  buatTautanPeta(contact.value?.latitude, contact.value?.longitude),
+);
 
 const getContact = async () => {
   const { data, error } = await supabase
@@ -221,18 +223,33 @@ onMounted(() => {
           </div>
 
           <!-- RIGHT : MAP -->
-          <div
-            v-reveal="{ arah: 'kanan' }"
-            class="overflow-hidden rounded-3xl bg-gray-100 shadow-sm"
-          >
-            <iframe
-              :src="mapEmbedUrl"
-              title="Lokasi LKSA Amanah Ummat Balikpapan"
-              class="h-[450px] w-full border-0"
-              loading="lazy"
-              allowfullscreen
-              referrerpolicy="no-referrer-when-downgrade"
-            ></iframe>
+          <div v-reveal="{ arah: 'kanan' }">
+            <div class="overflow-hidden rounded-3xl bg-gray-100 shadow-sm">
+              <iframe
+                :src="mapEmbedUrl"
+                title="Lokasi LKSA Amanah Ummat Balikpapan"
+                class="h-[450px] w-full border-0"
+                loading="lazy"
+                allowfullscreen
+                referrerpolicy="no-referrer-when-downgrade"
+              ></iframe>
+            </div>
+
+            <a
+              v-if="mapLinkUrl"
+              :href="mapLinkUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="group mt-4 inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+            >
+              <MapPin class="h-4 w-4" />
+              Buka di Google Maps
+              <span
+                class="transition-transform duration-300 group-hover:translate-x-1"
+              >
+                →
+              </span>
+            </a>
           </div>
         </div>
 

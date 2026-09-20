@@ -34,7 +34,7 @@ ikut terkirim ke browser setiap pengunjung.
 
 ### Pemasangan database (sekali saja)
 
-Sebagian besar tabel sudah ada di Supabase. Dua berkas SQL perlu dijalankan
+Sebagian besar tabel sudah ada di Supabase. Tiga berkas SQL perlu dijalankan
 untuk mengaktifkan fitur tambahan. Buka Supabase Dashboard -> **SQL Editor**
 -> **New query**, tempel isinya, lalu tekan **Run**:
 
@@ -42,13 +42,14 @@ untuk mengaktifkan fitur tambahan. Buka Supabase Dashboard -> **SQL Editor**
 | --- | --- |
 | [`supabase/site_settings.sql`](supabase/site_settings.sql) | Menu *Logo & Nama* — mengganti logo dan nama yayasan |
 | [`supabase/about_sections.sql`](supabase/about_sections.sql) | Menu *Perjalanan & Nilai* — kartu nilai dan garis waktu di halaman Tentang Kami |
+| [`supabase/achievements.sql`](supabase/achievements.sql) | Menu *Prestasi* — halaman Prestasi beserta pengelolaannya |
 
-Kedua berkas aman dijalankan berulang kali.
+Ketiga berkas aman dijalankan berulang kali.
 
 Sebelum dijalankan, website tetap berfungsi normal: navbar memakai nama
 "Amanah Ummat" dengan logo huruf bawaan, halaman Tentang Kami tampil tanpa
-bagian nilai dan perjalanan, dan menu terkait di panel admin menampilkan
-petunjuk ini.
+bagian nilai dan perjalanan, halaman Prestasi tampil dengan keterangan "belum
+tersedia", dan menu terkait di panel admin menampilkan petunjuk ini.
 
 Setelah dijalankan, pastikan pengunjung biasa tidak bisa mengubahnya:
 
@@ -96,11 +97,13 @@ src/
     siteIdentity.js  Logo & nama yayasan, diambil sekali lalu dibagikan
     favicon.js       Ikon tab browser, mengikuti logo dari CMS
     motion.js        Directive v-reveal + penanda "kurangi gerakan"
+    mapLocation.js   Membaca koordinat dari tautan Google Maps
     aboutIcons.js    Pilihan ikon untuk kartu Nilai Kami
     adminMenu.js     Daftar menu panel admin
 supabase/
   site_settings.sql    Tabel logo & nama
   about_sections.sql   Tabel nilai & perjalanan
+  achievements.sql     Tabel prestasi
   router/        Daftar alamat halaman + penjaga login admin
   views/         Halaman publik dan halaman admin
 ```
@@ -124,7 +127,8 @@ bagian, jadi tidak perlu kembali ke beranda panel setiap kali.
 | Tentang Kami | Judul, cerita yayasan, foto utama | Halaman Tentang Kami |
 | Program | Tambah / ubah / hapus program | Halaman Program |
 | Galeri Foto | Tambah / ubah / hapus foto | Halaman Galeri |
-| Kontak | Alamat, telepon, WhatsApp, email | Halaman Kontak + bagian bawah semua halaman |
+| Prestasi | Tambah / ubah / hapus / urutkan prestasi | Halaman Prestasi |
+| Kontak | Alamat, telepon, WhatsApp, email, titik lokasi peta | Halaman Kontak + bagian bawah semua halaman |
 | Donasi | Rekening, QRIS, WhatsApp konfirmasi | Halaman Donasi |
 
 ### Cara kerja panel
@@ -169,10 +173,33 @@ mengubahnya menjadi format internasional. Di bawah kolom isian akan muncul
 tautan hasil konversinya (`wa.me/628...`) - pastikan tautan itu benar sebelum
 menyimpan. Bila muncul tulisan merah, berarti nomornya belum benar.
 
+### Titik lokasi di peta
+
+Pada menu *Kontak* ada bagian **Lokasi di peta**. Cara mengisinya:
+
+1. Buka Google Maps, cari lokasi yayasan
+2. Salin tautan dari kolom alamat browser
+3. Tempel di kolom yang tersedia, tekan **Baca Lokasi**
+4. Periksa pratinjau petanya, lalu tekan **Simpan Kontak**
+
+Koordinat terisi otomatis — tidak perlu mengetik angka apa pun.
+
+**Bila tautannya masih berbentuk pendek** (`maps.app.goo.gl/...`), tautan itu
+tidak dapat dibaca langsung karena aturan keamanan browser. Buka dulu tautan
+tersebut sampai petanya muncul, lalu salin alamat lengkap dari kolom alamat
+browser.
+
+Bila muncul peringatan kuning *"Titik ini berada di luar Indonesia"*, biasanya
+lintang dan bujur tertukar posisinya. Periksa pratinjau petanya sebelum
+menyimpan.
+
+Titik lokasi boleh dikosongkan — halaman Kontak akan menampilkan peta lokasi
+bawaan.
+
 ### Menghapus
 
-Menghapus program atau foto selalu menampilkan kotak konfirmasi lebih dulu.
-Data yang sudah dihapus **tidak dapat dikembalikan**.
+Menghapus program, foto, atau prestasi selalu menampilkan kotak konfirmasi
+lebih dulu. Data yang sudah dihapus **tidak dapat dikembalikan**.
 
 ## Catatan tentang animasi
 

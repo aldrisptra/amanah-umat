@@ -83,6 +83,13 @@ onMounted(() => {
           </router-link>
 
           <router-link
+            to="/prestasi"
+            class="text-gray-400 transition hover:text-white"
+          >
+            Prestasi
+          </router-link>
+
+          <router-link
             to="/kontak"
             class="text-gray-400 transition hover:text-white"
           >

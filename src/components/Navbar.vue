@@ -12,6 +12,7 @@ const MENU = [
   { to: "/tentang-kami", label: "Tentang Kami" },
   { to: "/program", label: "Program" },
   { to: "/galeri", label: "Galeri" },
+  { to: "/prestasi", label: "Prestasi" },
   { to: "/kontak", label: "Kontak" },
 ];
 
@@ -128,7 +129,7 @@ watch(() => route.path, tutupMenu);
       </router-link>
 
       <!-- MENU LAYAR BESAR -->
-      <nav ref="navRef" class="relative hidden items-center gap-1 md:flex">
+      <nav ref="navRef" class="relative hidden items-center gap-1 lg:flex">
         <!-- Pil penanda yang meluncur -->
         <span
           aria-hidden="true"
@@ -161,7 +162,7 @@ watch(() => route.path, tutupMenu);
       <!-- TOMBOL DONASI -->
       <router-link
         to="/donasi"
-        class="group relative ml-2 hidden items-center overflow-hidden rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 md:inline-flex"
+        class="group relative ml-2 hidden items-center overflow-hidden rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 lg:inline-flex"
         :class="
           modeTerang
             ? 'bg-white text-emerald-700 shadow-lg shadow-black/10 hover:shadow-xl'
@@ -184,7 +185,7 @@ watch(() => route.path, tutupMenu);
       <!-- TOMBOL MENU PONSEL -->
       <button
         type="button"
-        class="flex h-11 w-11 items-center justify-center rounded-full transition-all duration-300 active:scale-90 md:hidden"
+        class="flex h-11 w-11 items-center justify-center rounded-full transition-all duration-300 active:scale-90 lg:hidden"
         :class="
           modeTerang
             ? 'bg-white/10 text-white backdrop-blur hover:bg-white/20'
@@ -208,7 +209,7 @@ watch(() => route.path, tutupMenu);
     >
       <div
         v-if="isMenuOpen"
-        class="pointer-events-auto fixed inset-0 z-50 bg-gray-950/95 backdrop-blur-xl md:hidden"
+        class="pointer-events-auto fixed inset-0 z-50 bg-gray-950/95 backdrop-blur-xl lg:hidden"
       >
         <div class="flex h-full flex-col">
           <!-- Kepala -->

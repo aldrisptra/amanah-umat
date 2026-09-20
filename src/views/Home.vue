@@ -235,19 +235,6 @@ onMounted(() => {
           </div>
         </div>
       </div>
-
-      <!-- Petunjuk bahwa halaman masih berlanjut ke bawah -->
-      <div
-        class="absolute inset-x-0 bottom-7 z-10 flex justify-center"
-        aria-hidden="true"
-      >
-        <span
-          class="hero-masuk flex h-10 w-6 items-start justify-center rounded-full border-2 border-white/40 p-1.5"
-          style="--tunda: 650ms"
-        >
-          <span class="titik-gulir h-1.5 w-1 rounded-full bg-white/70"></span>
-        </span>
-      </div>
     </section>
 
     <!-- =========================
@@ -598,29 +585,9 @@ onMounted(() => {
   }
 }
 
-.titik-gulir {
-  animation: titik-gulir 1.9s ease-in-out infinite;
-}
-
-@keyframes titik-gulir {
-  0%,
-  100% {
-    opacity: 0;
-    transform: translateY(0);
-  }
-  35% {
-    opacity: 1;
-  }
-  75% {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .hero-zoom,
-  .hero-masuk,
-  .titik-gulir {
+  .hero-masuk {
     animation: none;
   }
 }

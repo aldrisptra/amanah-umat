@@ -34,6 +34,12 @@ const routes = [
   },
 
   {
+    path: "/prestasi",
+    name: "achievements",
+    component: () => import("../views/Achievements.vue"),
+  },
+
+  {
     path: "/kontak",
     name: "contact",
     component: () => import("../views/Contact.vue"),
@@ -100,6 +106,11 @@ const routes = [
         path: "gallery",
         name: "AdminGallery",
         component: () => import("../views/AdminGallery.vue"),
+      },
+      {
+        path: "prestasi",
+        name: "AdminAchievements",
+        component: () => import("../views/AdminAchievements.vue"),
       },
       {
         path: "contact",

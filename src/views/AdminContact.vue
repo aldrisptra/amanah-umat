@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { CircleCheck, CircleAlert } from "lucide-vue-next";
+import { CircleAlert, CircleCheck, ExternalLink, MapPin } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
 import AdminPage from "../components/admin/AdminPage.vue";
 import AdminCard from "../components/admin/AdminCard.vue";
@@ -8,6 +8,15 @@ import AdminField from "../components/admin/AdminField.vue";
 import AdminSaveBar from "../components/admin/AdminSaveBar.vue";
 import AdminAlert from "../components/admin/AdminAlert.vue";
 import { normalizeWhatsapp } from "../lib/utils";
+import {
+  bacaKoordinat,
+  buatEmbedPeta,
+  buatTautanPeta,
+  bulatkanKoordinat,
+  diIndonesia,
+  koordinatValid,
+  tautanPendek,
+} from "../lib/mapLocation";
 import { useUnsavedChanges } from "../lib/useUnsavedChanges";
 
 const contact = ref(null);
@@ -21,7 +30,17 @@ const form = reactive({
   phone: "",
   whatsapp: "",
   email: "",
+  // Disimpan sebagai teks di form supaya kolom isian boleh dikosongkan.
+  // Diubah menjadi angka hanya saat disimpan ke database.
+  latitude: "",
+  longitude: "",
 });
+
+// Kolom bantu: pengurus menempel tautan Google Maps di sini, lalu
+// koordinatnya diisikan otomatis. Tidak ikut disimpan ke database.
+const tautanPeta = ref("");
+const pesanPeta = ref("");
+const pesanPetaJenis = ref("info");
 
 // Salinan nilai awal, dipakai untuk mengetahui apakah ada perubahan.
 // Harus berupa ref: computed di bawah membacanya, dan Vue hanya melacak
@@ -41,6 +60,76 @@ const resetForm = () => {
   form.phone = "";
   form.whatsapp = "";
   form.email = "";
+  form.latitude = "";
+  form.longitude = "";
+};
+
+/* =========================================================
+   LOKASI PETA
+========================================================= */
+
+const koordinat = computed(() => {
+  const lat = Number.parseFloat(form.latitude);
+  const lng = Number.parseFloat(form.longitude);
+
+  return koordinatValid(lat, lng) ? { lat, lng } : null;
+});
+
+const embedPeta = computed(() =>
+  koordinat.value ? buatEmbedPeta(koordinat.value.lat, koordinat.value.lng) : "",
+);
+
+const tautanBukaPeta = computed(() =>
+  koordinat.value
+    ? buatTautanPeta(koordinat.value.lat, koordinat.value.lng)
+    : "",
+);
+
+// Peringatan halus bila koordinat jatuh di luar Indonesia. Penyebab
+// tersering: lintang dan bujur tertukar posisinya.
+const lokasiDiLuarIndonesia = computed(
+  () =>
+    Boolean(koordinat.value) &&
+    !diIndonesia(koordinat.value.lat, koordinat.value.lng),
+);
+
+const terapkanTautan = () => {
+  const isi = tautanPeta.value.trim();
+
+  if (!isi) {
+    pesanPetaJenis.value = "error";
+    pesanPeta.value = "Tempel dulu tautan Google Maps-nya.";
+    return;
+  }
+
+  const hasil = bacaKoordinat(isi);
+
+  if (hasil) {
+    form.latitude = String(bulatkanKoordinat(hasil.lat));
+    form.longitude = String(bulatkanKoordinat(hasil.lng));
+
+    pesanPetaJenis.value = "sukses";
+    pesanPeta.value =
+      "Titik lokasi berhasil dibaca. Periksa petanya di bawah, lalu tekan Simpan.";
+
+    tautanPeta.value = "";
+    return;
+  }
+
+  pesanPetaJenis.value = "error";
+
+  // Tautan pendek tidak bisa dibuka dari browser karena aturan keamanan
+  // lintas-domain. Beri jalan keluar yang konkret, bukan sekadar "gagal".
+  pesanPeta.value = tautanPendek(isi)
+    ? "Tautan ini masih berbentuk pendek. Buka dulu tautannya di browser sampai peta muncul, lalu salin alamat lengkap dari kolom alamat browser dan tempel di sini."
+    : "Tautan tidak dikenali. Pastikan yang ditempel adalah tautan Google Maps yang memuat titik lokasi.";
+};
+
+const hapusLokasi = () => {
+  form.latitude = "";
+  form.longitude = "";
+  tautanPeta.value = "";
+  pesanPeta.value = "";
 };
 
 const getContact = async () => {
@@ -66,9 +155,20 @@ const getContact = async () => {
       form.phone = record.phone || "";
       form.whatsapp = record.whatsapp || "";
       form.email = record.email || "";
+      form.latitude =
+        record.latitude === null || record.latitude === undefined
+          ? ""
+          : String(record.latitude);
+      form.longitude =
+        record.longitude === null || record.longitude === undefined
+          ? ""
+          : String(record.longitude);
     } else {
       resetForm();
     }
+
+    pesanPeta.value = "";
+    tautanPeta.value = "";
 
     nilaiAwal.value = JSON.stringify(form);
   } catch (error) {
@@ -88,6 +188,18 @@ const saveContact = async () => {
     return;
   }
 
+  // Titik lokasi boleh dikosongkan, tetapi bila diisi harus lengkap dan sah -
+  // separuh koordinat membuat peta menunjuk tempat yang keliru.
+  const adaIsianLokasi = Boolean(
+    form.latitude.trim() || form.longitude.trim(),
+  );
+
+  if (adaIsianLokasi && !koordinat.value) {
+    errorMessage.value =
+      "Titik lokasi belum benar. Tempel tautan Google Maps pada kolom di atas, atau kosongkan kedua isian koordinat.";
+    return;
+  }
+
   saving.value = true;
   errorMessage.value = "";
   successMessage.value = "";
@@ -98,6 +210,8 @@ const saveContact = async () => {
       phone: form.phone.trim(),
       whatsapp: form.whatsapp.trim(),
       email: form.email.trim(),
+      latitude: koordinat.value ? koordinat.value.lat : null,
+      longitude: koordinat.value ? koordinat.value.lng : null,
     };
 
     let result;
@@ -265,6 +379,166 @@ onMounted(getContact);
               class="admin-input"
             />
           </AdminField>
+        </AdminCard>
+
+        <AdminCard
+          step="3"
+          title="Lokasi di peta"
+          description="Titik yang ditampilkan pada peta di halaman Kontak, supaya calon donatur dan tamu dapat menemukan alamat yayasan."
+        >
+          <!-- Cara termudah: tempel tautan Google Maps -->
+          <div class="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+            <p class="text-sm font-semibold text-emerald-900">
+              Cara mengisi
+            </p>
+
+            <ol
+              class="mt-2 list-inside list-decimal space-y-1 text-sm leading-6 text-emerald-800"
+            >
+              <li>Buka Google Maps, cari lokasi yayasan.</li>
+              <li>Salin tautan dari kolom alamat browser.</li>
+              <li>Tempel di bawah ini, lalu tekan Baca Lokasi.</li>
+            </ol>
+
+            <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+              <input
+                v-model="tautanPeta"
+                type="text"
+                placeholder="Tempel tautan Google Maps di sini"
+                class="admin-input flex-1"
+                @keydown.enter.prevent="terapkanTautan"
+              />
+
+              <button
+                type="button"
+                @click="terapkanTautan"
+                class="shrink-0 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              >
+                Baca Lokasi
+              </button>
+            </div>
+
+            <p
+              v-if="pesanPeta"
+              class="mt-3 flex items-start gap-1.5 text-xs leading-5"
+              :class="
+                pesanPetaJenis === 'sukses' ? 'text-emerald-700' : 'text-red-600'
+              "
+            >
+              <component
+                :is="pesanPetaJenis === 'sukses' ? CircleCheck : CircleAlert"
+                class="mt-0.5 h-3.5 w-3.5 shrink-0"
+              />
+              {{ pesanPeta }}
+            </p>
+          </div>
+
+          <!-- Koordinat, untuk yang ingin mengisi manual -->
+          <div class="grid gap-5 sm:grid-cols-2">
+            <AdminField
+              v-slot="{ id }"
+              label="Lintang (latitude)"
+              hint="Terisi otomatis dari tautan di atas."
+              :value="form.latitude"
+            >
+              <input
+                :id="id"
+                v-model="form.latitude"
+                type="text"
+                inputmode="decimal"
+                placeholder="-1.235027"
+                class="admin-input"
+              />
+            </AdminField>
+
+            <AdminField
+              v-slot="{ id }"
+              label="Bujur (longitude)"
+              hint="Terisi otomatis dari tautan di atas."
+              :value="form.longitude"
+            >
+              <input
+                :id="id"
+                v-model="form.longitude"
+                type="text"
+                inputmode="decimal"
+                placeholder="116.818451"
+                class="admin-input"
+              />
+            </AdminField>
+          </div>
+
+          <!-- Peringatan koordinat tertukar -->
+          <div
+            v-if="lokasiDiLuarIndonesia"
+            class="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3"
+          >
+            <CircleAlert class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+
+            <p class="text-sm leading-6 text-amber-800">
+              Titik ini berada di luar Indonesia. Biasanya karena lintang dan
+              bujur tertukar posisinya. Periksa petanya di bawah sebelum
+              menyimpan.
+            </p>
+          </div>
+
+          <!-- Pratinjau peta -->
+          <div>
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p class="text-sm font-semibold text-gray-800">
+                Pratinjau peta
+              </p>
+
+              <div class="flex items-center gap-3">
+                <a
+                  v-if="tautanBukaPeta"
+                  :href="tautanBukaPeta"
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 transition hover:text-emerald-800"
+                >
+                  <ExternalLink class="h-3.5 w-3.5" />
+                  Buka di Google Maps
+                </a>
+
+                <button
+                  v-if="koordinat"
+                  type="button"
+                  @click="hapusLokasi"
+                  class="text-xs font-semibold text-gray-500 transition hover:text-red-600"
+                >
+                  Hapus titik
+                </button>
+              </div>
+            </div>
+
+            <div
+              class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50"
+            >
+              <iframe
+                v-if="embedPeta"
+                :src="embedPeta"
+                title="Pratinjau lokasi yayasan"
+                class="h-72 w-full border-0"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+              ></iframe>
+
+              <div
+                v-else
+                class="flex h-72 flex-col items-center justify-center gap-2 text-gray-400"
+              >
+                <MapPin class="h-8 w-8" />
+
+                <p class="text-sm">Titik lokasi belum diatur</p>
+
+                <p class="max-w-xs text-center text-xs">
+                  Halaman Kontak akan menampilkan peta lokasi bawaan sampai
+                  titik ini diisi.
+                </p>
+              </div>
+            </div>
+          </div>
         </AdminCard>
       </div>
 
