@@ -111,6 +111,10 @@ const POLA_WWW = /^www\./i;
 const bersihkanNamaAkun = (nilai) =>
   String(nilai || "")
     .trim()
+    // Tautan yang disalin dari aplikasi sering membawa tanda pelacak
+    // (?stkn=..., ?igsh=...). Tanda itu tidak boleh ikut tampil sebagai
+    // bagian dari nama akun.
+    .split(/[?#]/)[0]
     .replace(/^@/, "")
     .replace(/\/+$/, "");
 

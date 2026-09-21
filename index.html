@@ -3,9 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <!-- Ikon bawaan. Bila admin sudah mengunggah logo lewat CMS,
-         ikon ini diganti otomatis saat halaman dimuat. -->
+         ikon ini diganti otomatis saat halaman dimuat.
+
+         Ditulis berlapis dengan sengaja:
+         - favicon.ico dipakai Google dan browser lama. Tanpa berkas ini,
+           permintaan ke /favicon.ico dijawab halaman HTML oleh aturan
+           routing, sehingga ikonnya tidak pernah terbaca.
+         - favicon.svg tetap tajam di layar beresolusi tinggi.
+         - icon-192.png dipakai saat website dipasang di layar utama ponsel.
+           Apple tidak mendukung SVG untuk keperluan ini, jadi harus PNG. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#059669" />
 
@@ -32,15 +42,20 @@
     <meta property="og:locale" content="id_ID" />
     <meta property="og:url" content="https://www.amanahummat.page/" />
 
-    <!-- Gambar pratinjau tautan. Simpan berkasnya sebagai public/og-image.jpg
-         berukuran 1200x630 piksel. Bila belum ada, tautan tetap terbagi -
-         hanya tampil tanpa gambar. -->
+    <!-- Gambar pratinjau tautan: public/og-image.jpg.
+         Ukuran di bawah HARUS sama dengan ukuran berkas yang sebenarnya -
+         WhatsApp dan Facebook memakainya untuk menyiapkan ruang gambar
+         sebelum berkasnya selesai diunduh. -->
     <meta
       property="og:image"
       content="https://www.amanahummat.page/og-image.jpg"
     />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="720" />
+    <meta
+      property="og:image:alt"
+      content="Kegiatan anak-anak LKSA Amanah Ummat Balikpapan"
+    />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta
@@ -55,10 +70,10 @@
          bukan sekadar halaman biasa. Inilah yang memungkinkan munculnya
          kotak informasi di sebelah kanan hasil pencarian.
 
-         BELUM LENGKAP: alamat jalan dan nomor telepon masih kosong karena
-         datanya belum tersedia. Setelah pengurus memberikannya, isi bagian
-         streetAddress dan telephone di bawah - JANGAN diisi karangan, data
-         yang keliru di sini justru merugikan.
+         Alamat dan telepon di bawah HARUS sama persis dengan yang tertulis
+         di menu Kontak panel admin dan di Google Bisnis Profil. Google
+         memakainya untuk memastikan ketiganya merujuk lembaga yang sama;
+         perbedaan penulisan justru melemahkan hasil pencarian.
     ========================================================== -->
     <script type="application/ld+json">
       {
@@ -69,8 +84,10 @@
         "url": "https://www.amanahummat.page/",
         "logo": "https://www.amanahummat.page/logo.png",
         "description": "Lembaga Kesejahteraan Sosial Anak yang membina anak yatim, piatu, dan dhuafa di Balikpapan, Kalimantan Timur melalui pendidikan, pembinaan keagamaan, dan kegiatan sosial.",
+        "telephone": "+6281347817612",
         "address": {
           "@type": "PostalAddress",
+          "streetAddress": "Jl. Sepaku RT.17 No.8, Baru Tengah, Kecamatan Balikpapan Barat",
           "addressLocality": "Balikpapan",
           "addressRegion": "Kalimantan Timur",
           "addressCountry": "ID"
