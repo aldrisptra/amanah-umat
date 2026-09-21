@@ -1,11 +1,12 @@
 <script setup>
-import { onMounted, ref, watch } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   ExternalLink,
   LayoutDashboard,
   LogOut,
   Menu,
+  TriangleAlert,
   X,
 } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
@@ -39,8 +40,90 @@ watch(
 const logout = async () => {
   await supabase.auth.signOut();
 
-  router.replace("/admin/login");
+  router.replace({ path: "/admin/login", query: { alasan: "keluar" } });
 };
+
+/* =========================================================
+   KELUAR OTOMATIS BILA DITINGGAL
+
+   Panel ini sering dibuka dari komputer bersama di kantor yayasan. Bila
+   ditinggal dalam keadaan terbuka, siapa pun yang lewat bisa mengubah isi
+   website - termasuk nomor rekening donasi. Karena itu sesi ditutup sendiri
+   setelah beberapa lama tanpa aktivitas, dengan peringatan lebih dulu supaya
+   pekerjaan yang sedang berjalan tidak hilang mendadak.
+========================================================= */
+
+const MENIT_DIAM = 30;
+const DETIK_PERINGATAN = 60;
+
+const detikMundur = ref(0);
+const peringatanTampil = ref(false);
+
+let waktuAktivitasTerakhir = Date.now();
+let pemeriksa = null;
+
+const catatAktivitas = () => {
+  // Selama peringatan tampil, gerakan tetikus tidak dihitung sebagai
+  // aktivitas: pengurus harus menekan tombolnya secara sadar.
+  if (peringatanTampil.value) return;
+
+  waktuAktivitasTerakhir = Date.now();
+};
+
+const lanjutkanSesi = () => {
+  peringatanTampil.value = false;
+  waktuAktivitasTerakhir = Date.now();
+};
+
+const keluarKarenaDiam = async () => {
+  if (pemeriksa) clearInterval(pemeriksa);
+
+  await supabase.auth.signOut();
+
+  router.replace({ path: "/admin/login", query: { alasan: "idle" } });
+};
+
+const periksaDiam = () => {
+  const diamDetik = Math.floor((Date.now() - waktuAktivitasTerakhir) / 1000);
+  const batas = MENIT_DIAM * 60;
+
+  if (diamDetik >= batas) {
+    keluarKarenaDiam();
+    return;
+  }
+
+  if (diamDetik >= batas - DETIK_PERINGATAN) {
+    peringatanTampil.value = true;
+    detikMundur.value = batas - diamDetik;
+    return;
+  }
+
+  peringatanTampil.value = false;
+};
+
+const PERISTIWA_AKTIVITAS = [
+  "mousemove",
+  "mousedown",
+  "keydown",
+  "touchstart",
+  "scroll",
+];
+
+onMounted(() => {
+  PERISTIWA_AKTIVITAS.forEach((nama) =>
+    window.addEventListener(nama, catatAktivitas, { passive: true }),
+  );
+
+  pemeriksa = setInterval(periksaDiam, 1000);
+});
+
+onBeforeUnmount(() => {
+  PERISTIWA_AKTIVITAS.forEach((nama) =>
+    window.removeEventListener(nama, catatAktivitas),
+  );
+
+  if (pemeriksa) clearInterval(pemeriksa);
+});
 </script>
 
 <template>
@@ -255,5 +338,52 @@ const logout = async () => {
       @confirm="logout"
       @cancel="konfirmasiKeluar = false"
     />
+
+    <!-- =========================================================
+         PERINGATAN SEBELUM KELUAR OTOMATIS
+
+         Muncul sebagai bilah di bawah layar, bukan jendela yang menutupi
+         halaman - supaya pengurus masih melihat pekerjaan yang sedang
+         dikerjakannya saat memutuskan.
+    ========================================================== -->
+    <Transition
+      enter-active-class="transition-all duration-300 ease-out"
+      enter-from-class="translate-y-full opacity-0"
+      leave-active-class="transition-all duration-200 ease-in"
+      leave-to-class="translate-y-full opacity-0"
+    >
+      <div
+        v-if="peringatanTampil"
+        role="alertdialog"
+        aria-live="assertive"
+        class="fixed inset-x-0 bottom-0 z-[70] px-4 pb-4"
+      >
+        <div
+          class="mx-auto flex max-w-2xl flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-2xl sm:flex-row sm:items-center"
+        >
+          <TriangleAlert class="h-6 w-6 shrink-0 text-amber-600" />
+
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold text-amber-900">
+              Sesi akan berakhir dalam
+              <span class="tabular-nums">{{ detikMundur }}</span> detik
+            </p>
+
+            <p class="mt-0.5 text-sm leading-6 text-amber-800">
+              Panel ditutup sendiri karena tidak ada aktivitas. Perubahan yang
+              belum disimpan bisa hilang.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            @click="lanjutkanSesi"
+            class="shrink-0 rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700"
+          >
+            Tetap di sini
+          </button>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>

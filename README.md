@@ -99,6 +99,7 @@ src/
     utils.js         Normalisasi nomor WhatsApp, validasi foto
     siteIdentity.js  Logo & nama yayasan, diambil sekali lalu dibagikan
     favicon.js       Ikon tab browser, mengikuti logo dari CMS
+    loginThrottle.js Pembatas percobaan login panel admin
     motion.js        Directive v-reveal + penanda "kurangi gerakan"
     mapLocation.js   Membaca koordinat dari tautan Google Maps
     aboutIcons.js    Pilihan ikon untuk kartu Nilai Kami
@@ -119,6 +120,42 @@ supabase/
 
 Buka `/admin`, masuk dengan email dan password yang sudah didaftarkan di
 Supabase -> **Authentication -> Users**.
+
+### Keamanan halaman masuk
+
+| Pengaman | Cara kerjanya |
+| --- | --- |
+| Pembatas percobaan | Setelah 5 kali salah, login dikunci 15 menit disertai hitungan mundur. Gagal karena internet putus tidak ikut dihitung |
+| Pesan galat netral | Tidak pernah menyebut apakah emailnya terdaftar — supaya orang luar tidak bisa menebak alamat email pengurus |
+| Peringatan Caps Lock | Muncul saat mengetik password, penyebab gagal masuk yang paling sering |
+| Keluar otomatis | Panel menutup sendiri setelah 30 menit tanpa aktivitas, dengan peringatan 1 menit sebelumnya. Penting karena panel sering dibuka dari komputer bersama |
+| Tidak diindeks | Seluruh halaman `/admin` memakai `noindex` selain sudah dilarang lewat `robots.txt` |
+
+Pembatas percobaan bekerja di sisi browser, jadi ia menahan orang yang menebak
+lewat halaman login. Penyerang yang memanggil server Supabase langsung ditahan
+oleh pembatas milik Supabase sendiri — keduanya saling melengkapi.
+
+### Lupa password
+
+Pengurus dapat mengganti passwordnya sendiri tanpa bantuan pengelola teknis:
+
+1. Di halaman masuk, tekan **Lupa password?**
+2. Masukkan email pengelola, tekan **Kirim tautan**
+3. Buka email (periksa juga folder spam), klik tautannya
+4. Buat password baru minimal 8 karakter, lalu masuk kembali
+
+Tautannya berlaku **satu jam dan sekali pakai**.
+
+**Wajib disetel sekali di Supabase** agar tautannya tidak salah arah:
+**Authentication -> URL Configuration** -> tambahkan alamat berikut ke
+*Redirect URLs*:
+
+```
+https://<alamat-website-anda>/admin/atur-ulang-password
+http://localhost:5173/admin/atur-ulang-password
+```
+
+Tanpa itu, tautan dari email akan mengarah ke halaman yang salah.
 
 Setelah masuk, menu ada di sisi kiri layar (atau lewat tombol garis tiga di
 pojok kanan atas bila memakai ponsel). Menu tidak akan hilang saat berpindah
@@ -160,6 +197,13 @@ dengan label **"Foto baru - belum disimpan"** sampai tombol Simpan ditekan.
 
 Format JPG, PNG, atau WebP, maksimal 5 MB per foto. Foto yang terlalu besar
 akan ditolak beserta keterangannya.
+
+**Berkas logo cadangan:** simpan logo asli yayasan sebagai
+[`public/logo.png`](public/) (boleh juga `.jpg` atau `.webp` asalkan namanya
+tetap `logo.png` bila ingin langsung terpakai). Berkas ini dipakai halaman
+masuk dan halaman password baru selama logo dari CMS belum tersedia. Bila
+berkasnya tidak ada, kedua halaman tetap tampil rapi memakai kotak hijau
+berisi huruf awal nama yayasan.
 
 **Khusus logo:** gunakan gambar berbentuk persegi. Format PNG dengan latar
 transparan memberi hasil terbaik karena logo tampil di atas latar putih
