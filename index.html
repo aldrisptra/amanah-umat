@@ -11,6 +11,11 @@
 
     <title>LKSA Amanah Ummat Balikpapan</title>
 
+    <!-- Alamat utama website. Perayap memakainya untuk memastikan versi mana
+         yang dianggap asli ketika satu halaman bisa dibuka dari beberapa
+         alamat (dengan dan tanpa www). -->
+    <link rel="canonical" href="https://www.amanahummat.page/" />
+
     <meta
       name="description"
       content="LKSA Amanah Ummat Balikpapan memberikan kasih sayang, pendidikan, dan kehidupan yang layak bagi anak-anak yatim, piatu, dan dhuafa di Balikpapan, Kalimantan Timur."
@@ -25,8 +30,57 @@
       content="Bersama mendukung kebutuhan, pendidikan, dan tumbuh kembang anak-anak yatim, piatu, dan dhuafa di Balikpapan."
     />
     <meta property="og:locale" content="id_ID" />
+    <meta property="og:url" content="https://www.amanahummat.page/" />
+
+    <!-- Gambar pratinjau tautan. Simpan berkasnya sebagai public/og-image.jpg
+         berukuran 1200x630 piksel. Bila belum ada, tautan tetap terbagi -
+         hanya tampil tanpa gambar. -->
+    <meta
+      property="og:image"
+      content="https://www.amanahummat.page/og-image.jpg"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
 
     <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:image"
+      content="https://www.amanahummat.page/og-image.jpg"
+    />
+
+    <!-- =========================================================
+         DATA TERSTRUKTUR
+
+         Memberi tahu Google bahwa ini lembaga sosial nirlaba di Balikpapan,
+         bukan sekadar halaman biasa. Inilah yang memungkinkan munculnya
+         kotak informasi di sebelah kanan hasil pencarian.
+
+         BELUM LENGKAP: alamat jalan dan nomor telepon masih kosong karena
+         datanya belum tersedia. Setelah pengurus memberikannya, isi bagian
+         streetAddress dan telephone di bawah - JANGAN diisi karangan, data
+         yang keliru di sini justru merugikan.
+    ========================================================== -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "NGO",
+        "name": "LKSA Amanah Ummat Balikpapan",
+        "alternateName": "Lembaga Kesejahteraan Sosial Anak Amanah Ummat",
+        "url": "https://www.amanahummat.page/",
+        "logo": "https://www.amanahummat.page/logo.png",
+        "description": "Lembaga Kesejahteraan Sosial Anak yang membina anak yatim, piatu, dan dhuafa di Balikpapan, Kalimantan Timur melalui pendidikan, pembinaan keagamaan, dan kegiatan sosial.",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Balikpapan",
+          "addressRegion": "Kalimantan Timur",
+          "addressCountry": "ID"
+        },
+        "areaServed": {
+          "@type": "City",
+          "name": "Balikpapan"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

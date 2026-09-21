@@ -100,6 +100,7 @@ src/
     siteIdentity.js  Logo & nama yayasan, diambil sekali lalu dibagikan
     favicon.js       Ikon tab browser, mengikuti logo dari CMS
     loginThrottle.js Pembatas percobaan login panel admin
+    seo.js           Judul & keterangan halaman untuk mesin pencari
     motion.js        Directive v-reveal + penanda "kurangi gerakan"
     mapLocation.js   Membaca koordinat dari tautan Google Maps
     aboutIcons.js    Pilihan ikon untuk kartu Nilai Kami
@@ -286,6 +287,46 @@ aturan `@media (prefers-reduced-motion: reduce)` pada
 
 Halaman Donasi sengaja tidak menganimasikan bagian nomor rekening: informasi
 itu harus tampil diam dan jelas.
+
+---
+
+## Mesin pencari (SEO)
+
+Judul dan keterangan tiap halaman ditulis di `meta` pada
+[`src/router/index.js`](src/router/index.js) lalu dipasang oleh
+[`src/lib/seo.js`](src/lib/seo.js). Menambah halaman baru berarti menambah
+`meta.title` dan `meta.description` pada rutenya — tanpa itu halaman tersebut
+memakai judul umum website.
+
+Tiga berkas statis melengkapinya:
+
+| Berkas | Isinya |
+| --- | --- |
+| [`public/sitemap.xml`](public/sitemap.xml) | Daftar alamat halaman publik untuk Google |
+| [`public/robots.txt`](public/robots.txt) | Larangan merayapi `/admin` + penunjuk sitemap |
+| [`index.html`](index.html) | Data terstruktur `NGO`, alamat kanonik, dan gambar pratinjau tautan |
+
+**Bila alamat website berganti**, tiga tempat ini harus ikut diganti karena
+alamatnya ditulis tetap: `public/sitemap.xml`, `public/robots.txt`, dan blok
+`<head>` pada `index.html`. Sisanya mengikuti alamat yang sedang dibuka secara
+otomatis.
+
+**Data terstruktur belum lengkap.** Bagian alamat jalan dan nomor telepon pada
+`index.html` sengaja dikosongkan sampai datanya tersedia dari pengurus. Isi
+data yang keliru di bagian ini lebih merugikan daripada mengosongkannya.
+
+**Gambar pratinjau tautan:** simpan sebagai `public/og-image.jpg` berukuran
+1200×630 piksel. Gambar inilah yang muncul saat tautan website dibagikan ke
+WhatsApp atau media sosial. Bila belum ada, tautan tetap terbagi — hanya tampil
+tanpa gambar.
+
+### Batas yang perlu disadari
+
+Website ini merakit isinya dengan JavaScript. Google menjalankan JavaScript
+sehingga judul per halaman tetap terbaca, tetapi perayap pratinjau tautan
+(WhatsApp, Facebook) **tidak** — mereka hanya membaca `index.html`. Karena itu
+`index.html` tetap memuat judul, keterangan, dan gambar bawaan yang mewakili
+website secara umum.
 
 ---
 
