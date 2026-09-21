@@ -1,13 +1,20 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { CircleAlert, CircleCheck, ExternalLink, MapPin } from "lucide-vue-next";
+import {
+  CircleAlert,
+  CircleCheck,
+  ExternalLink,
+  Instagram,
+  MapPin,
+  Youtube,
+} from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
 import AdminPage from "../components/admin/AdminPage.vue";
 import AdminCard from "../components/admin/AdminCard.vue";
 import AdminField from "../components/admin/AdminField.vue";
 import AdminSaveBar from "../components/admin/AdminSaveBar.vue";
 import AdminAlert from "../components/admin/AdminAlert.vue";
-import { normalizeWhatsapp } from "../lib/utils";
+import { buildSocialUrl, normalizeWhatsapp } from "../lib/utils";
 import {
   bacaKoordinat,
   buatEmbedPeta,
@@ -30,6 +37,8 @@ const form = reactive({
   phone: "",
   whatsapp: "",
   email: "",
+  instagram: "",
+  youtube: "",
   // Disimpan sebagai teks di form supaya kolom isian boleh dikosongkan.
   // Diubah menjadi angka hanya saat disimpan ke database.
   latitude: "",
@@ -55,11 +64,21 @@ useUnsavedChanges(adaPerubahan);
 // akan dipakai website. wa.me menolak format "0812...".
 const whatsappPreview = computed(() => normalizeWhatsapp(form.whatsapp));
 
+// Tampilkan tautan jadinya, supaya pengurus bisa memastikan akunnya benar
+// sebelum menyimpan - bukan baru ketahuan salah setelah tampil di website.
+const instagramPreview = computed(() =>
+  buildSocialUrl("instagram", form.instagram),
+);
+
+const youtubePreview = computed(() => buildSocialUrl("youtube", form.youtube));
+
 const resetForm = () => {
   form.address = "";
   form.phone = "";
   form.whatsapp = "";
   form.email = "";
+  form.instagram = "";
+  form.youtube = "";
   form.latitude = "";
   form.longitude = "";
 };
@@ -155,6 +174,8 @@ const getContact = async () => {
       form.phone = record.phone || "";
       form.whatsapp = record.whatsapp || "";
       form.email = record.email || "";
+      form.instagram = record.instagram || "";
+      form.youtube = record.youtube || "";
       form.latitude =
         record.latitude === null || record.latitude === undefined
           ? ""
@@ -178,6 +199,12 @@ const getContact = async () => {
     loading.value = false;
   }
 };
+
+// Supabase menolak kolom yang belum ada dengan kode PGRST204. Pesannya
+// diperiksa juga karena kode galat bisa berbeda antar versi PostgREST.
+const kolomSosialBelumAda = (error) =>
+  error?.code === "PGRST204" ||
+  /instagram|youtube/i.test(error?.message || "");
 
 const saveContact = async () => {
   if (saving.value) return;
@@ -210,6 +237,8 @@ const saveContact = async () => {
       phone: form.phone.trim(),
       whatsapp: form.whatsapp.trim(),
       email: form.email.trim(),
+      instagram: form.instagram.trim(),
+      youtube: form.youtube.trim(),
       latitude: koordinat.value ? koordinat.value.lat : null,
       longitude: koordinat.value ? koordinat.value.lng : null,
     };
@@ -245,6 +274,36 @@ const saveContact = async () => {
       } else {
         result = await supabase.from("contact").insert(payload).select();
       }
+    }
+
+    // Kolom media sosial ditambahkan menyusul lewat berkas SQL. Selama
+    // berkas itu belum dijalankan, sisa data kontak tetap harus bisa
+    // disimpan - jadi ulangi tanpa kedua kolom tersebut, lalu beri tahu
+    // pengurus mengapa bagian itu belum tersimpan.
+    if (result.error && kolomSosialBelumAda(result.error)) {
+      const { instagram, youtube, ...tanpaSosial } = payload;
+
+      const ulang = contact.value?.id
+        ? await supabase
+            .from("contact")
+            .update(tanpaSosial)
+            .eq("id", contact.value.id)
+            .select()
+        : await supabase.from("contact").insert(tanpaSosial).select();
+
+      if (ulang.error) {
+        throw ulang.error;
+      }
+
+      await getContact();
+
+      errorMessage.value =
+        "Alamat dan nomor kontak tersimpan, tetapi Instagram dan YouTube belum. " +
+        "Tempat penyimpanannya belum dibuat di database - minta pengelola teknis " +
+        "menjalankan berkas supabase/social_media.sql pada SQL Editor di Supabase. " +
+        "Cukup sekali saja.";
+
+      return;
     }
 
     if (result.error) {
@@ -383,6 +442,83 @@ onMounted(getContact);
 
         <AdminCard
           step="3"
+          title="Media sosial"
+          description="Tautan akun resmi yayasan. Tampil sebagai tombol di halaman Kontak dan di bagian bawah setiap halaman. Boleh dikosongkan bila belum punya."
+        >
+          <div class="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+            <p class="text-sm leading-6 text-emerald-900">
+              Cukup tulis nama akunnya saja, misalnya
+              <strong class="font-semibold">amanahummat</strong>. Boleh juga
+              memakai tanda @ atau menempel tautan lengkapnya — website akan
+              merapikannya sendiri.
+            </p>
+          </div>
+
+          <AdminField
+            v-slot="{ id }"
+            label="Instagram"
+            hint="Nama akun Instagram yayasan."
+            :value="form.instagram"
+          >
+            <input
+              :id="id"
+              v-model="form.instagram"
+              type="text"
+              placeholder="amanahummat"
+              class="admin-input"
+            />
+
+            <p
+              v-if="instagramPreview"
+              class="mt-2 flex items-center gap-1.5 text-xs text-emerald-700"
+            >
+              <Instagram class="h-3.5 w-3.5 shrink-0" />
+
+              <a
+                :href="instagramPreview"
+                target="_blank"
+                rel="noopener"
+                class="underline underline-offset-2"
+              >
+                {{ instagramPreview }}
+              </a>
+            </p>
+          </AdminField>
+
+          <AdminField
+            v-slot="{ id }"
+            label="YouTube"
+            hint="Nama kanal YouTube yayasan. Bila kanalnya belum punya nama khusus, tempel saja tautan kanalnya."
+            :value="form.youtube"
+          >
+            <input
+              :id="id"
+              v-model="form.youtube"
+              type="text"
+              placeholder="amanahummat"
+              class="admin-input"
+            />
+
+            <p
+              v-if="youtubePreview"
+              class="mt-2 flex items-center gap-1.5 text-xs text-emerald-700"
+            >
+              <Youtube class="h-3.5 w-3.5 shrink-0" />
+
+              <a
+                :href="youtubePreview"
+                target="_blank"
+                rel="noopener"
+                class="underline underline-offset-2"
+              >
+                {{ youtubePreview }}
+              </a>
+            </p>
+          </AdminField>
+        </AdminCard>
+
+        <AdminCard
+          step="4"
           title="Lokasi di peta"
           description="Titik yang ditampilkan pada peta di halaman Kontak, supaya calon donatur dan tamu dapat menemukan alamat yayasan."
         >

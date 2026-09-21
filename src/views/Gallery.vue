@@ -47,7 +47,7 @@
                 : 'bg-gray-100 text-gray-600 hover:bg-emerald-50 hover:text-emerald-600'
             "
           >
-            {{ category }}
+            {{ labelKategori(category) }}
           </button>
         </div>
 
@@ -93,7 +93,7 @@
                 </p>
 
                 <p class="mt-1 text-sm text-gray-200">
-                  {{ item.category }}
+                  {{ item.category || LABEL_TANPA_KATEGORI }}
                 </p>
               </div>
             </div>
@@ -150,7 +150,7 @@
           </p>
 
           <p class="mt-1 text-sm text-gray-300">
-            {{ selectedImage.category }}
+            {{ selectedImage.category || LABEL_TANPA_KATEGORI }}
           </p>
         </div>
       </div>
@@ -172,21 +172,68 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { supabase } from "../lib/supabase";
 
+// Penanda buatan untuk foto yang belum dikelompokkan. Bagi pengunjung
+// ditampilkan sebagai "Lainnya" - kata "tanpa kategori" terdengar seperti
+// ada yang belum selesai dikerjakan.
+const TANPA_KATEGORI = "__tanpa_kategori";
+const LABEL_TANPA_KATEGORI = "Lainnya";
+
 const activeCategory = ref("Semua");
+
+const labelKategori = (nama) =>
+  nama === TANPA_KATEGORI ? LABEL_TANPA_KATEGORI : nama;
 const selectedImage = ref(null);
 
 const gallery = ref([]);
 const loadingGallery = ref(true);
 
+// Urutan kategori yang diatur pengurus lewat panel admin. Berasal dari tabel
+// yang dibuat menyusul, jadi selama belum ada daftarnya cukup kosong dan
+// urutan kategori kembali mengikuti urutan foto.
+const urutanKategori = ref([]);
+
+const getKategori = async () => {
+  const { data, error } = await supabase
+    .from("gallery_categories")
+    .select("name")
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    const tabelBelumAda = error.code === "PGRST205" || error.code === "42P01";
+
+    if (!tabelBelumAda) {
+      console.error("Gagal mengambil kategori galeri:", error);
+    }
+
+    return;
+  }
+
+  urutanKategori.value = (data || []).map((item) => item.name);
+};
+
 // Kategori diambil dari data, bukan daftar tetap. Dengan cara ini kategori
 // baru yang ditambahkan lewat CMS langsung muncul sebagai filter, dan
 // kategori yang belum punya foto tidak menampilkan hasil kosong.
 const categories = computed(() => {
-  const dariData = gallery.value
-    .map((item) => item.category)
-    .filter((category) => Boolean(category));
+  const dariData = new Set(
+    gallery.value.map((item) => item.category).filter(Boolean),
+  );
 
-  return ["Semua", ...new Set(dariData)];
+  // Kategori yang sudah diurutkan pengurus tampil lebih dulu, dan hanya bila
+  // benar-benar punya foto - supaya tidak ada tombol yang selalu kosong.
+  const terurut = urutanKategori.value.filter((nama) => dariData.has(nama));
+
+  // Kategori lama yang tidak ada di daftar pengaturan tetap ikut tampil,
+  // agar fotonya tidak menjadi tidak terjangkau pengunjung.
+  const sisa = [...dariData].filter((nama) => !terurut.includes(nama));
+
+  // Selalu paling belakang, dan hanya muncul bila memang ada fotonya
+  const tanpa = gallery.value.some((item) => !item.category)
+    ? [TANPA_KATEGORI]
+    : [];
+
+  return ["Semua", ...terurut, ...sisa, ...tanpa];
 });
 
 const getGallery = async () => {
@@ -207,11 +254,16 @@ const getGallery = async () => {
 
 onMounted(() => {
   getGallery();
+  getKategori();
 });
 
 const filteredGallery = computed(() => {
   if (activeCategory.value === "Semua") {
     return gallery.value;
+  }
+
+  if (activeCategory.value === TANPA_KATEGORI) {
+    return gallery.value.filter((item) => !item.category);
   }
 
   return gallery.value.filter((item) => item.category === activeCategory.value);

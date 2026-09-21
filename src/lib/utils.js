@@ -96,3 +96,64 @@ export const buildStorageFileName = (file, prefix = "") => {
 
   return `${prefix}${Date.now()}-${acak}.${ekstensi}`;
 };
+
+/* =========================================================
+   MEDIA SOSIAL
+
+   Pengurus tidak perlu tahu bentuk tautan yang benar. Isian boleh berupa
+   tautan penuh, "@namaakun", atau "namaakun" saja - semuanya diubah menjadi
+   tautan yang bisa dibuka.
+========================================================= */
+
+const POLA_TAUTAN = /^https?:\/\//i;
+const POLA_WWW = /^www\./i;
+
+const bersihkanNamaAkun = (nilai) =>
+  String(nilai || "")
+    .trim()
+    .replace(/^@/, "")
+    .replace(/\/+$/, "");
+
+/**
+ * Bangun tautan media sosial yang siap dibuka.
+ *
+ * @param {"instagram"|"youtube"} jenis
+ * @param {string} nilai isian dari panel admin
+ * @returns {string} tautan lengkap, atau "" bila isian kosong
+ */
+export const buildSocialUrl = (jenis, nilai) => {
+  const isi = String(nilai || "").trim();
+
+  if (!isi) return "";
+
+  // Sudah berupa tautan - pakai apa adanya supaya tautan kanal YouTube
+  // berbentuk /channel/UCxxxx tidak ikut diubah menjadi /@UCxxxx.
+  if (POLA_TAUTAN.test(isi)) return isi;
+  if (POLA_WWW.test(isi)) return `https://${isi}`;
+
+  const akun = bersihkanNamaAkun(isi);
+
+  if (!akun) return "";
+
+  return jenis === "youtube"
+    ? `https://www.youtube.com/@${akun}`
+    : `https://www.instagram.com/${akun}`;
+};
+
+/**
+ * Teks pendek untuk ditampilkan di website, mis. "@amanahummat".
+ * Dipakai supaya pengunjung melihat nama akun, bukan tautan panjang.
+ */
+export const socialLabel = (nilai) => {
+  const isi = String(nilai || "").trim();
+
+  if (!isi) return "";
+
+  if (POLA_TAUTAN.test(isi) || POLA_WWW.test(isi)) {
+    const potongan = isi.replace(/\/+$/, "").split("/");
+
+    return `@${bersihkanNamaAkun(potongan[potongan.length - 1])}`;
+  }
+
+  return `@${bersihkanNamaAkun(isi)}`;
+};

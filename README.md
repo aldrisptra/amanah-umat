@@ -34,7 +34,7 @@ ikut terkirim ke browser setiap pengunjung.
 
 ### Pemasangan database (sekali saja)
 
-Sebagian besar tabel sudah ada di Supabase. Tiga berkas SQL perlu dijalankan
+Sebagian besar tabel sudah ada di Supabase. Lima berkas SQL perlu dijalankan
 untuk mengaktifkan fitur tambahan. Buka Supabase Dashboard -> **SQL Editor**
 -> **New query**, tempel isinya, lalu tekan **Run**:
 
@@ -43,13 +43,16 @@ untuk mengaktifkan fitur tambahan. Buka Supabase Dashboard -> **SQL Editor**
 | [`supabase/site_settings.sql`](supabase/site_settings.sql) | Menu *Logo & Nama* — mengganti logo dan nama yayasan |
 | [`supabase/about_sections.sql`](supabase/about_sections.sql) | Menu *Perjalanan & Nilai* — kartu nilai dan garis waktu di halaman Tentang Kami |
 | [`supabase/achievements.sql`](supabase/achievements.sql) | Menu *Prestasi* — halaman Prestasi beserta pengelolaannya |
+| [`supabase/social_media.sql`](supabase/social_media.sql) | Isian Instagram & YouTube pada menu *Kontak* |
+| [`supabase/gallery_categories.sql`](supabase/gallery_categories.sql) | Tombol *Kelola Kategori* pada menu *Galeri Foto* |
 
-Ketiga berkas aman dijalankan berulang kali.
+Kelima berkas aman dijalankan berulang kali.
 
 Sebelum dijalankan, website tetap berfungsi normal: navbar memakai nama
 "Amanah Ummat" dengan logo huruf bawaan, halaman Tentang Kami tampil tanpa
 bagian nilai dan perjalanan, halaman Prestasi tampil dengan keterangan "belum
-tersedia", dan menu terkait di panel admin menampilkan petunjuk ini.
+tersedia", isian media sosial belum muncul, kategori galeri memakai empat
+kategori bawaan, dan menu terkait di panel admin menampilkan petunjuk ini.
 
 Setelah dijalankan, pastikan pengunjung biasa tidak bisa mengubahnya:
 
@@ -104,6 +107,8 @@ supabase/
   site_settings.sql    Tabel logo & nama
   about_sections.sql   Tabel nilai & perjalanan
   achievements.sql     Tabel prestasi
+  social_media.sql     Kolom Instagram & YouTube pada tabel kontak
+  gallery_categories.sql  Tabel kategori galeri
   router/        Daftar alamat halaman + penjaga login admin
   views/         Halaman publik dan halaman admin
 ```
@@ -126,9 +131,9 @@ bagian, jadi tidak perlu kembali ke beranda panel setiap kali.
 | Halaman Depan | Judul besar, kalimat pengantar, foto latar, ajakan donasi | Halaman pertama website |
 | Tentang Kami | Judul, cerita yayasan, foto utama | Halaman Tentang Kami |
 | Program | Tambah / ubah / hapus program | Halaman Program |
-| Galeri Foto | Tambah / ubah / hapus foto | Halaman Galeri |
+| Galeri Foto | Tambah / ubah / hapus foto, dan kelola daftar kategorinya | Halaman Galeri |
 | Prestasi | Tambah / ubah / hapus / urutkan prestasi | Halaman Prestasi |
-| Kontak | Alamat, telepon, WhatsApp, email, titik lokasi peta | Halaman Kontak + bagian bawah semua halaman |
+| Kontak | Alamat, telepon, WhatsApp, email, Instagram, YouTube, titik lokasi peta | Halaman Kontak + bagian bawah semua halaman |
 | Donasi | Rekening, QRIS, WhatsApp konfirmasi | Halaman Donasi |
 
 ### Cara kerja panel
@@ -195,6 +200,26 @@ menyimpan.
 
 Titik lokasi boleh dikosongkan — halaman Kontak akan menampilkan peta lokasi
 bawaan.
+
+### Kategori galeri
+
+Daftar kategori pada halaman *Galeri Foto* diatur lewat tombol **Kelola
+Kategori** di pojok kanan atas. Dari situ kategori bisa ditambah, diganti
+namanya, dihapus, dan diurutkan — urutannya menentukan urutan tombol penyaring
+yang dilihat pengunjung.
+
+Mengganti nama kategori **ikut memperbarui seluruh foto** yang memakainya, jadi
+tidak ada foto yang tertinggal di kategori lama. Menghapus kategori **tidak**
+menghapus fotonya: foto tersebut hanya berpindah menjadi tanpa kategori.
+
+Kategori yang belum dipakai foto mana pun tidak ditampilkan di website, supaya
+pengunjung tidak menemukan tombol penyaring yang kosong.
+
+Foto yang belum diberi kategori berkumpul di kelompok bawaan **Tanpa
+Kategori** — muncul sebagai tombol penyaring terakhir di panel admin, dan
+sebagai **Lainnya** di halaman galeri. Kelompok ini terbentuk sendiri, jadi
+tidak bisa diubah namanya maupun dihapus, dan menghilang dengan sendirinya
+begitu semua foto sudah dikelompokkan.
 
 ### Menghapus
 

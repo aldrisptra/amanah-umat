@@ -1,8 +1,8 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
-import { MapPin } from "lucide-vue-next";
+import { Instagram, MapPin, Youtube } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
-import { buildWhatsappUrl } from "../lib/utils";
+import { buildSocialUrl, buildWhatsappUrl, socialLabel } from "../lib/utils";
 import { buatEmbedPeta, buatTautanPeta } from "../lib/mapLocation";
 
 const contact = ref(null);
@@ -13,6 +13,20 @@ const fallbackMapEmbedUrl =
 
 // Nomor dari CMS sering ditulis format lokal ("0813..."), sedangkan wa.me
 // hanya menerima format internasional ("62813...").
+// Kedua kolom ini ditambahkan menyusul lewat berkas SQL. Selama belum ada,
+// nilainya undefined dan tombolnya cukup tidak ditampilkan.
+const instagramUrl = computed(() =>
+  buildSocialUrl("instagram", contact.value?.instagram),
+);
+
+const youtubeUrl = computed(() =>
+  buildSocialUrl("youtube", contact.value?.youtube),
+);
+
+const adaMediaSosial = computed(() =>
+  Boolean(instagramUrl.value || youtubeUrl.value),
+);
+
 const whatsappUrl = computed(() =>
   buildWhatsappUrl(
     contact.value?.whatsapp,
@@ -218,6 +232,35 @@ onMounted(() => {
                 </a>
 
                 <p v-else class="mt-1 text-gray-500">Email belum tersedia.</p>
+              </div>
+            </div>
+
+            <!-- Media sosial -->
+            <div v-if="adaMediaSosial" class="mt-8 border-t border-gray-100 pt-6">
+              <h3 class="font-bold text-gray-900">Ikuti kami</h3>
+
+              <div class="mt-3 flex flex-wrap gap-3">
+                <a
+                  v-if="instagramUrl"
+                  :href="instagramUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                  <Instagram class="h-4 w-4" />
+                  {{ socialLabel(contact.instagram) }}
+                </a>
+
+                <a
+                  v-if="youtubeUrl"
+                  :href="youtubeUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                  <Youtube class="h-4 w-4" />
+                  {{ socialLabel(contact.youtube) }}
+                </a>
               </div>
             </div>
           </div>

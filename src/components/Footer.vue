@@ -1,7 +1,8 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { supabase } from "../lib/supabase";
-import { buildWhatsappUrl } from "../lib/utils";
+import { buildSocialUrl, buildWhatsappUrl, socialLabel } from "../lib/utils";
+import { Instagram, Youtube } from "lucide-vue-next";
 import { useSiteIdentity } from "../lib/siteIdentity";
 import SiteLogo from "./SiteLogo.vue";
 
@@ -13,10 +14,18 @@ const { identitas } = useSiteIdentity();
 
 const whatsappUrl = computed(() => buildWhatsappUrl(contact.value?.whatsapp));
 
+const instagramUrl = computed(() =>
+  buildSocialUrl("instagram", contact.value?.instagram),
+);
+
+const youtubeUrl = computed(() =>
+  buildSocialUrl("youtube", contact.value?.youtube),
+);
+
 const getContact = async () => {
   const { data, error } = await supabase
     .from("contact")
-    .select("address, phone, email, whatsapp")
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(1);
 
@@ -141,6 +150,34 @@ onMounted(() => {
               Hubungi via WhatsApp
             </a>
           </p>
+        </div>
+
+        <!-- Media sosial -->
+        <div
+          v-if="instagramUrl || youtubeUrl"
+          class="mt-6 flex flex-wrap gap-3"
+        >
+          <a
+            v-if="instagramUrl"
+            :href="instagramUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            :aria-label="`Instagram ${socialLabel(contact.instagram)}`"
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-gray-300 transition hover:bg-white/20 hover:text-white"
+          >
+            <Instagram class="h-5 w-5" />
+          </a>
+
+          <a
+            v-if="youtubeUrl"
+            :href="youtubeUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            :aria-label="`YouTube ${socialLabel(contact.youtube)}`"
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-gray-300 transition hover:bg-white/20 hover:text-white"
+          >
+            <Youtube class="h-5 w-5" />
+          </a>
         </div>
       </div>
     </div>
