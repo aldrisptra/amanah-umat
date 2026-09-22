@@ -2,18 +2,21 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <!-- Ikon bawaan. Bila admin sudah mengunggah logo lewat CMS,
-         ikon ini diganti otomatis saat halaman dimuat.
+    <!-- Ikon website: tab browser, hasil pencarian Google, dan layar utama
+         ponsel. Keduanya dibuat dari logo asli yayasan (public/logo.png).
 
-         Ditulis berlapis dengan sengaja:
-         - favicon.ico dipakai Google dan browser lama. Tanpa berkas ini,
-           permintaan ke /favicon.ico dijawab halaman HTML oleh aturan
-           routing, sehingga ikonnya tidak pernah terbaca.
-         - favicon.svg tetap tajam di layar beresolusi tinggi.
-         - icon-192.png dipakai saat website dipasang di layar utama ponsel.
-           Apple tidak mendukung SVG untuk keperluan ini, jadi harus PNG. -->
-    <link rel="icon" href="/favicon.ico" sizes="32x32" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+         Syarat Google yang WAJIB dijaga bila ikon ini diganti:
+         - berbentuk PERSEGI sempurna (lebar = tinggi). Logo 1001x1024
+           ditolak dan diganti ikon bola dunia.
+         - minimal 48x48 piksel.
+
+         favicon.ico berisi tiga ukuran sekaligus (16, 32, 48). Berkas ini
+         harus ada: tanpanya, alamat /favicon.ico dijawab halaman HTML oleh
+         aturan routing dan Google tidak pernah menemukan ikonnya.
+
+         Ikon ini tidak mengikuti logo yang diunggah lewat panel admin -
+         lihat catatan di src/lib/siteIdentity.js. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48 32x32 16x16" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

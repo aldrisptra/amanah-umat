@@ -98,7 +98,6 @@ src/
     supabase.js      Koneksi Supabase
     utils.js         Normalisasi nomor WhatsApp, validasi foto
     siteIdentity.js  Logo & nama yayasan, diambil sekali lalu dibagikan
-    favicon.js       Ikon tab browser, mengikuti logo dari CMS
     loginThrottle.js Pembatas percobaan login panel admin
     seo.js           Judul & keterangan halaman untuk mesin pencari
     imageCompress.js Memperkecil foto di browser sebelum diunggah
@@ -226,9 +225,11 @@ transparan memberi hasil terbaik karena logo tampil di atas latar putih
 menyediakan pratinjau kedua latar tersebut. Bila logo dikosongkan, website
 menampilkan kotak hijau berisi huruf awal nama yayasan.
 
-Logo yang sama juga dipakai sebagai **ikon tab browser** (favicon), jadi pilih
-gambar yang tetap terbaca saat diperkecil ke ukuran sangat kecil. Halaman
-*Logo & Nama* menampilkan pratinjaunya juga.
+Logo ini dimuat di **setiap halaman** (bagian atas dan bawah), jadi usahakan
+berkasnya di bawah 300 KB.
+
+**Ikon tab browser dan ikon di Google tidak ikut berubah** saat logo di menu
+*Logo & Nama* diganti. Lihat bagian *Catatan tentang ikon* di bawah.
 
 ### Nomor WhatsApp
 
@@ -346,9 +347,19 @@ website secara umum.
 
 ## Catatan tentang ikon dan pratinjau tautan
 
-Ikon tab browser diganti oleh JavaScript setelah halaman dimuat, mengikuti
-logo yang diunggah admin. Berkas [`public/favicon.svg`](public/favicon.svg)
-tetap diperlukan sebagai tampilan awal sebelum JavaScript berjalan.
+Ikon tab browser, ikon di hasil pencarian Google, dan ikon di layar utama
+ponsel diambil dari dua berkas tetap: [`public/favicon.ico`](public/) (16, 32,
+dan 48 piksel) dan [`public/icon-192.png`](public/). Keduanya dibuat dari
+`public/logo.png`.
+
+Ikon ini **sengaja tidak mengikuti** logo yang diunggah lewat panel admin.
+Google hanya menerima favicon yang **persegi sempurna** dan membaca halaman
+setelah JavaScript berjalan. Dulu ikon diganti otomatis mengikuti logo dari
+CMS — hasilnya Google menerima logo berukuran 1001×1024 piksel, menolaknya,
+lalu menampilkan ikon bola dunia polos.
+
+Bila logo yayasan berganti, buat ulang kedua berkas itu dari logo baru dalam
+bentuk persegi, lalu deploy.
 
 Yang **tidak** ikut berubah otomatis adalah gambar pratinjau saat tautan
 dibagikan ke WhatsApp atau media sosial (`og:image`). Tag tersebut dibaca

@@ -312,13 +312,13 @@ onMounted(getSettings);
         <AdminCard
           step="2"
           title="Logo"
-          description="Gambar kecil di sebelah kiri nama yayasan, sekaligus menjadi ikon pada tab browser. Boleh dikosongkan — bila kosong, website menampilkan kotak hijau berisi huruf awal nama."
+          description="Gambar kecil di sebelah kiri nama yayasan, di bagian atas dan bawah setiap halaman. Boleh dikosongkan — bila kosong, website menampilkan kotak hijau berisi huruf awal nama."
         >
           <AdminImageInput
             :preview-url="logoPreviewUrl"
             :file-name="selectedLogoFile?.name || ''"
             :disabled="saving"
-            hint="Gunakan logo berbentuk kotak (persegi) agar tampil rapi. Format PNG dengan latar transparan memberi hasil paling baik, karena logo akan tampil di atas latar putih maupun gelap. Logo ini juga dipakai sebagai ikon tab browser, jadi pilih gambar yang tetap terbaca saat diperkecil — logo bertulisan kecil akan sulit dikenali."
+            hint="Gunakan logo berbentuk kotak (persegi) agar tampil rapi. Format PNG dengan latar transparan memberi hasil paling baik, karena logo akan tampil di atas latar putih maupun gelap. Usahakan di bawah 300 KB — logo ini dimuat di setiap halaman, jadi berkas yang berat membuat seluruh website lebih lambat."
             aspect="1/1"
             fit="contain"
             @select="handleLogoSelect"
@@ -409,40 +409,23 @@ onMounted(getSettings);
             kedua latar — logo berwarna gelap pekat akan hilang di sana.
           </p>
 
-          <!-- Tiruan tab browser -->
-          <div>
-            <p class="mb-2 text-sm font-semibold text-gray-800">
-              Ikon pada tab browser
+          <!-- Ikon tab & Google tidak mengikuti logo ini. Dijelaskan di sini
+               supaya pengurus tidak bingung mengapa ikon tab tidak ikut
+               berubah setelah logo diganti. -->
+          <div
+            class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3.5"
+          >
+            <p class="text-sm font-semibold text-gray-800">
+              Tentang ikon tab browser dan Google
             </p>
 
-            <div class="rounded-2xl border border-gray-200 bg-gray-100 p-3">
-              <div
-                class="flex w-64 max-w-full items-center gap-2 rounded-t-lg bg-white px-3 py-2 shadow-sm"
-              >
-                <img
-                  v-if="logoPreviewUrl"
-                  :src="logoPreviewUrl"
-                  alt="Pratinjau ikon tab"
-                  class="h-4 w-4 shrink-0 rounded object-contain"
-                />
-
-                <span
-                  v-else
-                  aria-hidden="true"
-                  class="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-emerald-600 text-[9px] font-bold text-white"
-                >
-                  {{ inisial }}
-                </span>
-
-                <span class="truncate text-xs text-gray-600">
-                  {{ form.site_name || "Nama Website" }}
-                </span>
-              </div>
-            </div>
-
-            <p class="mt-2 text-xs leading-5 text-gray-500">
-              Ikon tab berukuran sangat kecil. Bila logo terlihat berantakan di
-              sini, sebaiknya pakai versi logo yang lebih sederhana.
+            <p class="mt-1 text-xs leading-5 text-gray-600">
+              Ikon kecil di tab browser dan di hasil pencarian Google
+              <strong class="font-semibold">tidak</strong> ikut berubah saat
+              logo di sini diganti. Ikon itu dibuat terpisah dalam ukuran
+              khusus, karena Google hanya menerima ikon yang persegi sempurna.
+              Bila logo yayasan berganti, minta pengelola teknis memperbarui
+              ikonnya juga.
             </p>
           </div>
         </AdminCard>

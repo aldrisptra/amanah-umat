@@ -1,6 +1,5 @@
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { supabase } from "./supabase";
-import { terapkanFavicon } from "./favicon";
 
 /**
  * Identitas website: logo dan nama yayasan.
@@ -25,13 +24,11 @@ export const tabelBelumDibuat = ref(false);
 
 let permintaanBerjalan = null;
 
-// Ikon tab mengikuti identitas. Ditulis sebagai watch agar berlaku untuk
-// semua jalur perubahan: pemuatan awal maupun penyimpanan dari panel admin.
-//
-// Sengaja TANPA `immediate`: sebelum data termuat, nilainya masih bawaan dan
-// sudah sama persis dengan berkas public/favicon.svg, jadi tidak ada yang
-// perlu diganti.
-watch(identitas, (nilai) => terapkanFavicon(nilai));
+// Ikon tab browser SENGAJA tidak mengikuti logo di sini. Ikon itu diambil
+// dari berkas tetap di public/ (favicon.ico, icon-192.png) yang sudah
+// berbentuk persegi dan berukuran tepat. Google hanya menerima favicon
+// persegi, dan ia membaca halaman SETELAH JavaScript berjalan - jadi mengganti
+// ikon di sini justru membuat Google menolaknya dan menampilkan bola dunia.
 
 const tabelTidakDitemukan = (error) =>
   // PostgREST memakai PGRST205, PostgreSQL memakai 42P01
