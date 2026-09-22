@@ -107,7 +107,7 @@ onMounted(() => {
     <section class="bg-white py-20">
       <div class="mx-auto max-w-7xl px-5 lg:px-8">
         <!-- Loading -->
-        <div v-if="loadingAbout" class="grid items-center gap-12 lg:grid-cols-2">
+        <div v-if="loadingAbout" class="grid items-start gap-12 lg:grid-cols-2">
           <div class="skeleton h-[450px] rounded-3xl"></div>
 
           <div class="space-y-4">
@@ -121,7 +121,10 @@ onMounted(() => {
         </div>
 
         <!-- Content -->
-        <div v-else-if="about" class="grid items-center gap-12 lg:grid-cols-2">
+        <!-- items-start, bukan items-center: cerita yayasan bisa panjang.
+             Bila ditengahkan, foto turun ke tengah tinggi teks dan
+             menyisakan ruang kosong di atasnya. -->
+        <div v-else-if="about" class="grid items-start gap-12 lg:grid-cols-2">
           <!-- IMAGE -->
           <div
             v-reveal="{ arah: 'kiri' }"
