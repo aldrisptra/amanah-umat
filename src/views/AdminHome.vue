@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { supabase } from "../lib/supabase";
+import { CACHE_FOTO, UKURAN, compressImage } from "../lib/imageCompress";
 import AdminPage from "../components/admin/AdminPage.vue";
 import AdminCard from "../components/admin/AdminCard.vue";
 import AdminField from "../components/admin/AdminField.vue";
@@ -116,11 +117,17 @@ const uploadImageFile = async (file) => {
 
   uploading.value = true;
 
-  const filePath = `home/${buildStorageFileName(file, "hero-")}`;
+  // Foto dari HP bisa 3-5 MB. Diperkecil dulu di browser supaya
+  // pengunjung tidak perlu mengunduh berkas sebesar itu.
+  const siap = await compressImage(file, UKURAN.hero);
+  const filePath = `home/${buildStorageFileName(siap, "hero-")}`;
 
   const { data, error } = await supabase.storage
     .from("images")
-    .upload(filePath, file, { cacheControl: "3600", upsert: false });
+    .upload(filePath, siap, {
+      cacheControl: CACHE_FOTO,
+      upsert: false,
+    });
 
   if (error) {
     uploading.value = false;

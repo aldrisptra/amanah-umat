@@ -3,6 +3,7 @@ import { onMounted, ref } from "vue";
 import { ChevronRight, ExternalLink } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
 import { ADMIN_MENU, MENU_COLORS } from "../lib/adminMenu";
+import AdminImageOptimizer from "../components/admin/AdminImageOptimizer.vue";
 
 /**
  * Beranda panel.
@@ -153,6 +154,15 @@ onMounted(ambilRingkasan);
             />
           </span>
         </router-link>
+      </div>
+
+      <!-- =========================================================
+           PERAWATAN
+      ========================================================== -->
+      <h2 class="mt-9 text-lg font-bold text-gray-900">Perawatan website</h2>
+
+      <div class="mt-4">
+        <AdminImageOptimizer />
       </div>
 
       <!-- =========================================================

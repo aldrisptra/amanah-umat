@@ -10,6 +10,7 @@ import {
   Trophy,
 } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
+import { CACHE_FOTO, UKURAN, compressImage } from "../lib/imageCompress";
 import AdminPage from "../components/admin/AdminPage.vue";
 import AdminField from "../components/admin/AdminField.vue";
 import AdminImageInput from "../components/admin/AdminImageInput.vue";
@@ -101,11 +102,17 @@ const unggahFoto = async (file) => {
   uploading.value = true;
 
   try {
-    const filePath = `achievements/${buildStorageFileName(file)}`;
+    // Foto dari HP bisa 3-5 MB. Diperkecil dulu di browser supaya
+    // pengunjung tidak perlu mengunduh berkas sebesar itu.
+    const siap = await compressImage(file, UKURAN.standar);
+    const filePath = `achievements/${buildStorageFileName(siap)}`;
 
     const { data, error } = await supabase.storage
       .from("images")
-      .upload(filePath, file, { cacheControl: "3600", upsert: false });
+      .upload(filePath, siap, {
+        cacheControl: CACHE_FOTO,
+        upsert: false,
+      });
 
     if (error) throw error;
 

@@ -101,6 +101,7 @@ src/
     favicon.js       Ikon tab browser, mengikuti logo dari CMS
     loginThrottle.js Pembatas percobaan login panel admin
     seo.js           Judul & keterangan halaman untuk mesin pencari
+    imageCompress.js Memperkecil foto di browser sebelum diunggah
     motion.js        Directive v-reveal + penanda "kurangi gerakan"
     mapLocation.js   Membaca koordinat dari tautan Google Maps
     aboutIcons.js    Pilihan ikon untuk kartu Nilai Kami
@@ -198,6 +199,19 @@ dengan label **"Foto baru - belum disimpan"** sampai tombol Simpan ditekan.
 
 Format JPG, PNG, atau WebP, maksimal 5 MB per foto. Foto yang terlalu besar
 akan ditolak beserta keterangannya.
+
+**Foto otomatis diperkecil sebelum diunggah.** Foto dari kamera HP umumnya
+3–5 MB, padahal di website hanya tampil paling lebar 1600 piksel. Sistem
+memperkecilnya di browser lebih dulu — biasanya berkurang 90% tanpa beda yang
+terlihat mata — supaya halaman Galeri dan Program tidak lambat dibuka.
+
+Pengecualian: **logo** dan **kode QRIS** diunggah apa adanya. Keduanya harus
+tetap tajam sempurna; QRIS yang sedikit buram bisa gagal dipindai aplikasi
+bank.
+
+Foto yang diunggah sebelum fitur ini ada bisa diperkecil sekaligus lewat
+**Beranda Panel → Perawatan website → Kecepatan foto**. Berkas aslinya tidak
+dihapus, sehingga tetap bisa dipulihkan bila diperlukan.
 
 **Berkas logo cadangan:** simpan logo asli yayasan sebagai
 [`public/logo.png`](public/) (boleh juga `.jpg` atau `.webp` asalkan namanya

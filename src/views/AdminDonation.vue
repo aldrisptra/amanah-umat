@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { CircleAlert, CircleCheck, TriangleAlert } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
+import { CACHE_FOTO } from "../lib/imageCompress";
 import AdminPage from "../components/admin/AdminPage.vue";
 import AdminCard from "../components/admin/AdminCard.vue";
 import AdminField from "../components/admin/AdminField.vue";
@@ -79,7 +80,10 @@ const uploadQrFile = async (file) => {
 
   const { data, error } = await supabase.storage
     .from("images")
-    .upload(filePath, file, { cacheControl: "3600", upsert: false });
+    .upload(filePath, file, {
+      cacheControl: CACHE_FOTO,
+      upsert: false,
+    });
 
   if (error) {
     uploading.value = false;
