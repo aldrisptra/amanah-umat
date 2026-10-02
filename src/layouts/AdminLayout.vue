@@ -1,11 +1,12 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   ExternalLink,
   LayoutDashboard,
   LogOut,
   Menu,
+  ShieldOff,
   TriangleAlert,
   X,
 } from "lucide-vue-next";
@@ -19,7 +20,6 @@ const router = useRouter();
 
 const adminEmail = ref("");
 const menuTerbuka = ref(false);
-const konfirmasiKeluar = ref(false);
 
 onMounted(async () => {
   const {
@@ -37,10 +37,59 @@ watch(
   },
 );
 
-const logout = async () => {
-  await supabase.auth.signOut();
+/* =========================================================
+   KELUAR
 
-  router.replace({ path: "/admin/login", query: { alasan: "keluar" } });
+   signOut() bawaan Supabase ber-scope "global": sesi dicabut di SEMUA
+   perangkat, bukan hanya yang sedang dipakai. Itu keliru di sini - satu akun
+   panel sering dipakai beberapa pengurus, sehingga laptop kantor yang
+   ditinggal menganggur tidak boleh ikut memutus HP pengurus lain yang sedang
+   mengunggah foto.
+
+   Karena itu keluar biasa memakai scope "local". Mencabut sesi di seluruh
+   perangkat tetap disediakan, tetapi sebagai tindakan terpisah yang dipilih
+   secara sadar - berguna bila panel pernah dibuka di komputer umum atau
+   pada perangkat yang hilang.
+========================================================= */
+
+const KONFIRMASI_KELUAR = {
+  lokal: {
+    title: "Keluar dari panel?",
+    message:
+      "Anda perlu memasukkan email dan password lagi untuk masuk kembali. Perangkat lain yang sedang masuk tidak terpengaruh.",
+    confirmLabel: "Ya, keluar",
+    danger: false,
+  },
+  semua: {
+    title: "Keluar dari semua perangkat?",
+    message:
+      "Seluruh perangkat yang sedang masuk akan diputus, termasuk pengurus lain yang mungkin sedang bekerja. Gunakan ini bila panel pernah dibuka di komputer umum atau pada perangkat yang hilang.",
+    confirmLabel: "Ya, putuskan semua",
+    danger: true,
+  },
+};
+
+// "" berarti tidak ada konfirmasi yang sedang tampil
+const konfirmasiKeluar = ref("");
+const sedangKeluar = ref(false);
+
+const dialogKeluar = computed(
+  () => KONFIRMASI_KELUAR[konfirmasiKeluar.value] || KONFIRMASI_KELUAR.lokal,
+);
+
+const logout = async () => {
+  if (sedangKeluar.value) return;
+
+  const semua = konfirmasiKeluar.value === "semua";
+
+  sedangKeluar.value = true;
+
+  await supabase.auth.signOut({ scope: semua ? "global" : "local" });
+
+  router.replace({
+    path: "/admin/login",
+    query: { alasan: semua ? "keluar-semua" : "keluar" },
+  });
 };
 
 /* =========================================================
@@ -78,7 +127,8 @@ const lanjutkanSesi = () => {
 const keluarKarenaDiam = async () => {
   if (pemeriksa) clearInterval(pemeriksa);
 
-  await supabase.auth.signOut();
+  // Hanya perangkat ini yang ditinggalkan, jadi hanya sesi ini yang dicabut
+  await supabase.auth.signOut({ scope: "local" });
 
   router.replace({ path: "/admin/login", query: { alasan: "idle" } });
 };
@@ -201,11 +251,20 @@ onBeforeUnmount(() => {
 
           <button
             type="button"
-            @click="konfirmasiKeluar = true"
+            @click="konfirmasiKeluar = 'lokal'"
             class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
           >
             <LogOut class="h-4 w-4" />
             Keluar
+          </button>
+
+          <button
+            type="button"
+            @click="konfirmasiKeluar = 'semua'"
+            class="mt-2 flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-gray-400 transition hover:text-red-600"
+          >
+            <ShieldOff class="h-3.5 w-3.5" />
+            Keluar dari semua perangkat
           </button>
         </div>
       </div>
@@ -313,11 +372,20 @@ onBeforeUnmount(() => {
 
           <button
             type="button"
-            @click="konfirmasiKeluar = true"
+            @click="konfirmasiKeluar = 'lokal'"
             class="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
           >
             <LogOut class="h-4 w-4" />
             Keluar
+          </button>
+
+          <button
+            type="button"
+            @click="konfirmasiKeluar = 'semua'"
+            class="mt-3 flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-gray-400 transition hover:text-red-600"
+          >
+            <ShieldOff class="h-3.5 w-3.5" />
+            Keluar dari semua perangkat
           </button>
         </div>
       </div>
@@ -331,12 +399,14 @@ onBeforeUnmount(() => {
     </div>
 
     <AdminConfirm
-      :open="konfirmasiKeluar"
-      title="Keluar dari panel?"
-      message="Anda perlu memasukkan email dan password lagi untuk masuk kembali."
-      confirm-label="Ya, keluar"
+      :open="Boolean(konfirmasiKeluar)"
+      :title="dialogKeluar.title"
+      :message="dialogKeluar.message"
+      :confirm-label="dialogKeluar.confirmLabel"
+      :danger="dialogKeluar.danger"
+      :busy="sedangKeluar"
       @confirm="logout"
-      @cancel="konfirmasiKeluar = false"
+      @cancel="konfirmasiKeluar = ''"
     />
 
     <!-- =========================================================

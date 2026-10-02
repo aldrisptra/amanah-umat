@@ -114,6 +114,9 @@ onMounted(() => {
       "Sesi Anda berakhir otomatis karena panel dibiarkan terbuka tanpa aktivitas. Silakan masuk kembali.";
   } else if (alasan === "keluar") {
     infoMessage.value = "Anda telah keluar dari panel pengelola.";
+  } else if (alasan === "keluar-semua") {
+    infoMessage.value =
+      "Sesi di semua perangkat telah diputus. Pengurus lain yang memakai akun ini juga perlu masuk kembali.";
   }
 });
 

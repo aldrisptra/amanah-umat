@@ -64,21 +64,61 @@ const pesanTautan = ref("");
 let hentikanPantauan = null;
 let batasWaktu = null;
 
-const tandaiTautanBermasalah = () => {
+// Keterangan galat dari Supabase berbahasa Inggris dan berbunyi teknis.
+// Diterjemahkan supaya pengurus tahu apa yang harus dilakukan, bukan sekadar
+// tahu ada yang salah.
+const PESAN_GALAT = {
+  otp_expired:
+    "Tautan ini sudah tidak berlaku. Tautan atur ulang password hanya berlaku satu jam dan sekali pakai — dan akan mati sendiri bila Anda meminta tautan baru. Silakan minta tautan baru dari halaman masuk.",
+  access_denied:
+    "Tautan ini sudah tidak berlaku atau sudah pernah dipakai. Silakan minta tautan baru dari halaman masuk.",
+};
+
+const bacaGalatAlamat = () => {
+  // Supabase menitipkan keterangan galat pada alamat, baik setelah tanda #
+  // maupun sebagai parameter biasa.
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const query = new URLSearchParams(window.location.search);
+
+  const kode =
+    hash.get("error_code") ||
+    query.get("error_code") ||
+    hash.get("error") ||
+    query.get("error");
+
+  if (!kode) return "";
+
+  return (
+    PESAN_GALAT[kode] ||
+    (
+      hash.get("error_description") ||
+      query.get("error_description") ||
+      ""
+    ).replace(/\+/g, " ") ||
+    "Tautan tidak berlaku lagi."
+  );
+};
+
+const tandaiTautanBermasalah = (pesan = "") => {
   memeriksa.value = false;
   sesiSiap.value = false;
 
-  // Alamat bisa membawa keterangan galat dari Supabase, mis. tautan kedaluwarsa
-  const keterangan = new URLSearchParams(
-    window.location.hash.replace(/^#/, ""),
-  ).get("error_description");
-
   pesanTautan.value =
-    keterangan ||
+    pesan ||
+    bacaGalatAlamat() ||
     "Tautan tidak berlaku lagi. Tautan atur ulang password hanya berlaku satu jam dan sekali pakai.";
 };
 
 onMounted(async () => {
+  // Bila Supabase sudah menyatakan tautannya bermasalah, tidak ada gunanya
+  // menunggu empat detik - langsung beri tahu dan tawarkan tautan baru.
+  const galatAlamat = bacaGalatAlamat();
+
+  if (galatAlamat) {
+    tandaiTautanBermasalah(galatAlamat);
+    return;
+  }
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -195,7 +235,12 @@ const simpanPassword = async () => {
     // Sesi pemulihan tidak dipakai untuk masuk ke panel. Pengurus diminta
     // masuk ulang memakai password barunya, supaya yakin password itu benar
     // dan tersimpan di pengelola kata sandinya.
-    await supabase.auth.signOut();
+    //
+    // Di sini scope "global" memang disengaja - berbeda dari tombol Keluar di
+    // panel yang hanya memutus perangkat setempat. Password diganti justru
+    // ketika password lama diduga diketahui orang lain, jadi semua perangkat
+    // yang masih masuk harus dipaksa keluar.
+    await supabase.auth.signOut({ scope: "global" });
 
     setTimeout(() => router.replace("/admin/login"), 2500);
   } catch (error) {
@@ -246,9 +291,7 @@ const simpanPassword = async () => {
       >
         <!-- Sedang memeriksa tautan -->
         <div v-if="memeriksa" class="py-8 text-center">
-          <LoaderCircle
-            class="mx-auto h-6 w-6 animate-spin text-emerald-600"
-          />
+          <LoaderCircle class="mx-auto h-6 w-6 animate-spin text-emerald-600" />
 
           <p class="mt-4 text-sm text-gray-600">Memeriksa tautan...</p>
         </div>
@@ -266,8 +309,8 @@ const simpanPassword = async () => {
           </h2>
 
           <p class="mx-auto mt-2 max-w-xs text-sm leading-6 text-gray-600">
-            Silakan masuk kembali memakai password baru Anda. Halaman masuk
-            akan terbuka sebentar lagi.
+            Silakan masuk kembali memakai password baru Anda. Halaman masuk akan
+            terbuka sebentar lagi.
           </p>
 
           <router-link
@@ -305,7 +348,10 @@ const simpanPassword = async () => {
         <!-- Form password baru -->
         <form v-else class="space-y-5" @submit.prevent="simpanPassword">
           <div>
-            <label for="password-baru" class="text-sm font-semibold text-gray-800">
+            <label
+              for="password-baru"
+              class="text-sm font-semibold text-gray-800"
+            >
               Password baru
             </label>
 
@@ -365,7 +411,10 @@ const simpanPassword = async () => {
           </div>
 
           <div>
-            <label for="password-ulang" class="text-sm font-semibold text-gray-800">
+            <label
+              for="password-ulang"
+              class="text-sm font-semibold text-gray-800"
+            >
               Ulangi password baru
             </label>
 
@@ -397,8 +446,8 @@ const simpanPassword = async () => {
             class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs leading-5 text-gray-600"
           >
             Gunakan password yang hanya Anda ketahui, minimal
-            {{ PANJANG_MINIMAL }} karakter. Hindari tanggal lahir, nama
-            yayasan, atau password yang dipakai di tempat lain.
+            {{ PANJANG_MINIMAL }} karakter. Hindari tanggal lahir, nama yayasan,
+            atau password yang dipakai di tempat lain.
           </div>
 
           <div
