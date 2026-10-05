@@ -19,7 +19,7 @@
           </h1>
 
           <p class="mt-6 max-w-2xl text-lg leading-8 text-gray-600">
-            Berbagai kegiatan yang diselenggarakan LKSA Amanah Ummat untuk
+            Berbagai kegiatan yang diselenggarakan Amanah Ummat untuk
             mendukung pendidikan, pembinaan, dan tumbuh kembang anak-anak.
           </p>
         </div>
@@ -31,6 +31,37 @@
     ========================== -->
     <section class="bg-white py-20">
       <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <div v-if="saringTampil" class="mb-10 flex flex-wrap gap-2.5">
+          <button
+            type="button"
+            @click="unitAktif = 'semua'"
+            class="rounded-full px-5 py-2.5 text-sm font-semibold transition"
+            :class="
+              unitAktif === 'semua'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'border border-gray-200 bg-white text-gray-600 hover:border-emerald-200 hover:text-emerald-700'
+            "
+          >
+            Semua Program
+          </button>
+
+          <button
+            v-for="unit in units"
+            :key="unit.slug"
+            type="button"
+            @click="unitAktif = unit.slug"
+            :title="unit.name"
+            class="rounded-full px-5 py-2.5 text-sm font-semibold transition"
+            :class="
+              unitAktif === unit.slug
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'border border-gray-200 bg-white text-gray-600 hover:border-emerald-200 hover:text-emerald-700'
+            "
+          >
+            {{ unit.short_name }}
+          </button>
+        </div>
+
         <div v-if="loadingPrograms" class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           <div
             v-for="n in 6"
@@ -49,15 +80,21 @@
         </div>
 
         <div
-          v-else-if="programs.length === 0"
+          v-else-if="programTampil.length === 0"
           class="py-20 text-center text-gray-500"
         >
-          Belum ada program yang tersedia.
+          <template v-if="unitAktif === 'semua'">
+            Belum ada program yang tersedia.
+          </template>
+
+          <template v-else>
+            Belum ada program yang ditandai untuk unit ini.
+          </template>
         </div>
 
         <div v-else class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           <article
-            v-for="(program, index) in programs"
+            v-for="(program, index) in programTampil"
             :key="program.id"
             v-reveal="{ delay: (index % 3) * 110 }"
             class="group overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:border-emerald-200 hover:shadow-xl"
@@ -72,12 +109,21 @@
             </div>
 
             <div class="p-7">
-              <span
-                v-if="program.category"
-                class="text-sm font-semibold text-emerald-600"
-              >
-                {{ program.category }}
-              </span>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span
+                  v-if="program.category"
+                  class="text-sm font-semibold text-emerald-600"
+                >
+                  {{ program.category }}
+                </span>
+
+                <span
+                  v-if="tandaUnit(program)"
+                  class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600"
+                >
+                  {{ tandaUnit(program) }}
+                </span>
+              </div>
 
               <h2 class="mt-2 text-2xl font-bold text-gray-900">
                 {{ program.title }}
@@ -106,7 +152,7 @@
 
         <p class="mx-auto mt-5 max-w-2xl leading-7 text-emerald-100">
           Dukungan dari Anda dapat membantu keberlangsungan berbagai kegiatan
-          dan kebutuhan anak-anak di LKSA Amanah Ummat.
+          dan kebutuhan anak-anak di Amanah Ummat.
         </p>
 
         <router-link
@@ -121,8 +167,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { supabase } from "../lib/supabase";
+import { cocokUnit, getUnits, labelUnit } from "../lib/units";
 
 const programs = ref([]);
 const loadingPrograms = ref(true);
@@ -143,7 +190,35 @@ const getPrograms = async () => {
   loadingPrograms.value = false;
 };
 
-onMounted(() => {
+/* =========================================================
+   PENYARING UNIT
+
+   LKSA dan TPQ berbagi satu lokasi tetapi menjalankan program yang
+   berbeda, jadi pengunjung perlu bisa memisahkan keduanya.
+========================================================= */
+
+const units = ref([]);
+const unitAktif = ref("semua");
+
+const programTampil = computed(() => {
+  if (unitAktif.value === "semua") return programs.value;
+
+  return programs.value.filter((program) =>
+    cocokUnit(program.unit, unitAktif.value),
+  );
+});
+
+// Tombol saring hanya berguna setelah pengurus benar-benar menandai
+// programnya. Selama belum ada satu pun yang ditandai, menampilkan
+// tombol "LKSA" dan "TPQ" yang selalu kosong justru membingungkan.
+const saringTampil = computed(
+  () => units.value.length > 1 && programs.value.some((program) => program.unit),
+);
+
+const tandaUnit = (program) => labelUnit(units.value, program.unit);
+
+onMounted(async () => {
   getPrograms();
+  units.value = await getUnits();
 });
 </script>

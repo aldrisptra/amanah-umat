@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { Pencil, Plus, Trash2 } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
 import { CACHE_FOTO, UKURAN, compressImage } from "../lib/imageCompress";
@@ -9,6 +9,7 @@ import AdminImageInput from "../components/admin/AdminImageInput.vue";
 import AdminConfirm from "../components/admin/AdminConfirm.vue";
 import AdminAlert from "../components/admin/AdminAlert.vue";
 import { buildStorageFileName } from "../lib/utils";
+import { getUnits, labelUnit, pilihanUnit } from "../lib/units";
 
 // ===============================
 // STATE
@@ -16,6 +17,18 @@ import { buildStorageFileName } from "../lib/utils";
 
 const programs = ref([]);
 const loading = ref(true);
+
+/* =========================
+   UNIT LEMBAGA
+
+   LKSA dan TPQ menjalankan program yang berbeda. Daftar unitnya baru
+   tersedia setelah supabase/unit_lembaga.sql dijalankan; selama belum,
+   pilihan unit cukup tidak ditampilkan dan panel tetap berfungsi penuh.
+========================= */
+
+const units = ref([]);
+const pilihanUnitProgram = computed(() => pilihanUnit(units.value));
+const tandaUnit = (program) => labelUnit(units.value, program.unit);
 
 const showModal = ref(false);
 const saving = ref(false);
@@ -37,6 +50,7 @@ const listErrorMessage = ref("");
 const form = reactive({
   title: "",
   category: "",
+  unit: "",
   description: "",
   image_url: "",
 });
@@ -140,6 +154,7 @@ const getPrograms = async () => {
 const resetForm = () => {
   form.title = "";
   form.category = "";
+  form.unit = "";
   form.description = "";
   form.image_url = "";
   selectedImageFile.value = null;
@@ -164,6 +179,7 @@ const openEditModal = (program) => {
 
   form.title = program.title || "";
   form.category = program.category || "";
+  form.unit = program.unit || "";
   form.description = program.description || "";
   form.image_url = program.image_url || "";
 
@@ -215,6 +231,13 @@ const saveProgram = async () => {
       description: form.description.trim(),
       image_url: uploadedImageUrl,
     };
+
+    // Kolom unit baru ada setelah supabase/unit_lembaga.sql dijalankan.
+    // Menyertakannya sebelum itu akan ditolak Supabase (PGRST204), jadi
+    // panel harus tetap bisa menyimpan program tanpa kolom tersebut.
+    if (units.value.length) {
+      payload.unit = form.unit || null;
+    }
 
     let result;
 
@@ -300,7 +323,10 @@ const deleteProgram = async () => {
   }
 };
 
-onMounted(getPrograms);
+onMounted(async () => {
+  getPrograms();
+  units.value = await getUnits();
+});
 </script>
 
 <template>
@@ -403,12 +429,21 @@ onMounted(getPrograms);
         </div>
 
         <div class="flex flex-1 flex-col p-5">
-          <span
-            v-if="program.category"
-            class="self-start rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
-          >
-            {{ program.category }}
-          </span>
+          <div class="flex flex-wrap gap-1.5">
+            <span
+              v-if="program.category"
+              class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
+            >
+              {{ program.category }}
+            </span>
+
+            <span
+              v-if="tandaUnit(program)"
+              class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600"
+            >
+              {{ tandaUnit(program) }}
+            </span>
+          </div>
 
           <h2 class="mt-2 text-lg font-bold text-gray-900">
             {{ program.title }}
@@ -510,6 +545,25 @@ onMounted(getPrograms);
               placeholder="Contoh: Pendidikan"
               class="admin-input"
             />
+          </AdminField>
+
+          <AdminField
+            v-if="pilihanUnitProgram.length"
+            v-slot="{ id }"
+            label="Unit penyelenggara"
+            hint="Pilih unit yang menjalankan program ini. Bila dijalankan bersama, pilih gabungannya."
+          >
+            <select :id="id" v-model="form.unit" class="admin-select">
+              <option value="">Belum ditentukan</option>
+
+              <option
+                v-for="pilihan in pilihanUnitProgram"
+                :key="pilihan.value"
+                :value="pilihan.value"
+              >
+                {{ pilihan.label }}
+              </option>
+            </select>
           </AdminField>
 
           <AdminField

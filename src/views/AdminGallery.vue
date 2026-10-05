@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
+import { getUnits, pilihanUnit } from "../lib/units";
 import { CACHE_FOTO, UKURAN, compressImage } from "../lib/imageCompress";
 import AdminPage from "../components/admin/AdminPage.vue";
 import AdminField from "../components/admin/AdminField.vue";
@@ -23,6 +24,11 @@ const KATEGORI_BAWAAN = ["Pendidikan", "Keagamaan", "Kebersamaan", "Kegiatan"];
 
 const kategori = ref([]);
 const tabelKategoriAda = ref(false);
+
+// Daftar unit (LKSA / TPQ) baru tersedia setelah
+// supabase/unit_lembaga.sql dijalankan. Selama belum, pilihan unit
+// cukup tidak ditampilkan dan galeri tetap berfungsi seperti biasa.
+const units = ref([]);
 
 const gallery = ref([]);
 const loading = ref(true);
@@ -53,6 +59,7 @@ const form = reactive({
   image_url: "",
   alt_text: "",
   category: "",
+  unit: "",
 });
 
 // URL pratinjau lokal harus dibebaskan agar tidak menumpuk di memori
@@ -87,6 +94,8 @@ const daftarFilter = computed(() => {
 
 // Pilihan pada form foto. Kategori lama yang tidak ada di daftar tetap
 // disertakan supaya foto tidak diam-diam kehilangan kategorinya saat disimpan.
+const pilihanUnitFoto = computed(() => pilihanUnit(units.value));
+
 const pilihanKategori = computed(() => {
   const gabungan = new Set(namaKategori.value);
 
@@ -459,6 +468,7 @@ const resetForm = () => {
   form.image_url = "";
   form.alt_text = "";
   form.category = "";
+  form.unit = "";
   selectedImageFile.value = null;
   revokePreview();
   imagePreviewUrl.value = "";
@@ -478,6 +488,7 @@ const openEditModal = (item) => {
   form.image_url = item.image_url || "";
   form.alt_text = item.alt_text || "";
   form.category = item.category || "";
+  form.unit = item.unit || "";
 
   selectedImageFile.value = null;
   revokePreview();
@@ -524,6 +535,12 @@ const saveGallery = async () => {
       alt_text: form.alt_text.trim(),
       category: form.category || null,
     };
+
+    // Kolom unit baru ada setelah supabase/unit_lembaga.sql dijalankan.
+    // Menyertakannya sebelum itu akan ditolak Supabase (PGRST204).
+    if (units.value.length) {
+      payload.unit = form.unit || null;
+    }
 
     let result;
 
@@ -604,9 +621,10 @@ const deleteGallery = async () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   getGallery();
   getKategori();
+  units.value = await getUnits();
 });
 </script>
 
@@ -859,6 +877,25 @@ onMounted(() => {
 
               <option v-for="k in pilihanKategori" :key="k" :value="k">
                 {{ k }}
+              </option>
+            </select>
+          </AdminField>
+
+          <AdminField
+            v-if="pilihanUnitFoto.length"
+            v-slot="{ id }"
+            label="Unit"
+            hint="Kegiatan pada foto ini milik unit yang mana."
+          >
+            <select :id="id" v-model="form.unit" class="admin-select">
+              <option value="">Belum ditentukan</option>
+
+              <option
+                v-for="pilihan in pilihanUnitFoto"
+                :key="pilihan.value"
+                :value="pilihan.value"
+              >
+                {{ pilihan.label }}
               </option>
             </select>
           </AdminField>

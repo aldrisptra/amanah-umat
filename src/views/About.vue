@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import { supabase } from "../lib/supabase";
 import { ambilIkonNilai } from "../lib/aboutIcons";
+import { getUnits } from "../lib/units";
 
 const about = ref(null);
 const loadingAbout = ref(true);
@@ -11,6 +12,11 @@ const loadingAbout = ref(true);
 // halaman tetap utuh dan tidak menampilkan pesan galat.
 const values = ref([]);
 const milestones = ref([]);
+
+// Amanah Ummat menaungi dua unit (LKSA dan TPQ) yang berbagi satu lokasi
+// namun menjalankan program berbeda. Sama seperti dua bagian di atas,
+// daftarnya berasal dari tabel yang dibuat menyusul.
+const units = ref([]);
 
 const getAbout = async () => {
   const { data, error } = await supabase
@@ -66,10 +72,11 @@ const getMilestones = async () => {
   milestones.value = data || [];
 };
 
-onMounted(() => {
+onMounted(async () => {
   getAbout();
   getValues();
   getMilestones();
+  units.value = await getUnits();
 });
 </script>
 
@@ -160,6 +167,58 @@ onMounted(() => {
         <!-- Empty -->
         <div v-else class="py-20 text-center text-gray-500">
           Informasi tentang LKSA belum tersedia.
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         UNIT KAMI
+    ========================== -->
+    <section v-if="units.length > 1" class="bg-white pb-20">
+      <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <div class="border-t border-gray-100 pt-20">
+          <div v-reveal class="mx-auto max-w-2xl text-center">
+            <span
+              class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
+            >
+              Unit Kami
+            </span>
+
+            <h2
+              class="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl"
+            >
+              Dua unit, satu rumah
+            </h2>
+
+            <p class="mt-5 leading-8 text-gray-600">
+              Amanah Ummat menaungi dua unit yang berjalan di lokasi yang sama
+              dengan program masing-masing. Sebagian anak mengikuti keduanya,
+              sebagian hanya salah satunya.
+            </p>
+          </div>
+
+          <div class="mt-12 grid gap-6 sm:grid-cols-2">
+            <article
+              v-for="(unit, index) in units"
+              :key="unit.id"
+              v-reveal="{ delay: index * 100 }"
+              class="rounded-3xl border border-emerald-100 bg-emerald-50/50 p-8"
+            >
+              <span
+                class="inline-flex rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold tracking-wide text-white"
+              >
+                {{ unit.short_name }}
+              </span>
+
+              <h3 class="mt-5 text-xl font-bold leading-7 text-gray-900">
+                {{ unit.name }}
+              </h3>
+
+              <p v-if="unit.description" class="mt-3 leading-7 text-gray-600">
+                {{ unit.description }}
+              </p>
+            </article>
+          </div>
         </div>
       </div>
     </section>
