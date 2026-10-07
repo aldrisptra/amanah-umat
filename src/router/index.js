@@ -43,6 +43,19 @@ const routes = [
     },
   },
 
+  // Program satu unit, mis. /program/lksa atau /program/tpq. Judul tab
+  // diganti halaman itu sendiri setelah nama unitnya dimuat.
+  {
+    path: "/program/:unit",
+    name: "programUnit",
+    component: () => import("../views/ProgramUnit.vue"),
+    meta: {
+      title: "Program",
+      description:
+        "Program dan kegiatan unit di bawah naungan Amanah Ummat Balikpapan.",
+    },
+  },
+
   {
     path: "/galeri",
     name: "gallery",
@@ -147,6 +160,11 @@ const routes = [
         path: "program",
         name: "AdminPrograms",
         component: () => import("../views/AdminPrograms.vue"),
+      },
+      {
+        path: "unit-program",
+        name: "AdminProgramUnits",
+        component: () => import("../views/AdminProgramUnits.vue"),
       },
       {
         path: "gallery",

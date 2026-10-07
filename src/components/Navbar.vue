@@ -25,6 +25,17 @@ const diBeranda = computed(() => route.path === "/");
 
 const modeTerang = computed(() => diBeranda.value && !sudahDigulir.value);
 
+// Menu yang sedang dibuka. Halaman turunan seperti /program/lksa tetap
+// menandai menu induknya ("Program").
+const menuAktif = computed(
+  () =>
+    MENU.find(
+      (item) =>
+        route.path === item.to ||
+        (item.to !== "/" && route.path.startsWith(`${item.to}/`)),
+    )?.to || "",
+);
+
 /* =========================================================
    MORPH SAAT DIGULIR
 
@@ -54,7 +65,7 @@ const perbaruiPenanda = async () => {
 
   if (!wadah) return;
 
-  const aktif = wadah.querySelector(`[data-path="${route.path}"]`);
+  const aktif = wadah.querySelector(`[data-path="${menuAktif.value}"]`);
 
   if (!aktif) {
     penanda.value = { ...penanda.value, tampil: false };
@@ -151,8 +162,8 @@ watch(() => route.path, tutupMenu);
             modeTerang
               ? 'text-white/80 hover:text-white'
               : 'text-gray-600 hover:text-emerald-700',
-            route.path === item.to && !modeTerang ? 'text-emerald-700!' : '',
-            route.path === item.to && modeTerang ? 'text-white!' : '',
+            menuAktif === item.to && !modeTerang ? 'text-emerald-700!' : '',
+            menuAktif === item.to && modeTerang ? 'text-white!' : '',
           ]"
         >
           {{ item.label }}
@@ -234,7 +245,7 @@ watch(() => route.path, tutupMenu);
               :to="item.to"
               class="menu-masuk rounded-2xl px-5 py-4 text-2xl font-bold tracking-tight transition-colors"
               :class="
-                route.path === item.to
+                menuAktif === item.to
                   ? 'bg-white/10 text-emerald-300'
                   : 'text-white/70 hover:bg-white/5 hover:text-white'
               "

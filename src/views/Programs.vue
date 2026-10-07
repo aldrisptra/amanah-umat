@@ -9,170 +9,118 @@
           <span
             class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
           >
-            Program Kami
+            {{ teks.eyebrow }}
           </span>
 
           <h1
             class="mt-4 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl"
           >
-            Kegiatan untuk tumbuh dan berkembang bersama.
+            {{ teks.title }}
           </h1>
 
           <p class="mt-6 max-w-2xl text-lg leading-8 text-gray-600">
-            Berbagai kegiatan yang diselenggarakan Amanah Ummat untuk
-            mendukung pendidikan, pembinaan, dan tumbuh kembang anak-anak.
+            {{ teks.description }}
           </p>
         </div>
       </div>
     </section>
 
     <!-- =========================
-         PROGRAM LIST
+         PILIHAN UNIT
     ========================== -->
     <section class="bg-white py-20">
       <div class="mx-auto max-w-7xl px-5 lg:px-8">
-        <div v-if="saringTampil" class="mb-10 flex flex-wrap gap-2.5">
-          <button
-            type="button"
-            @click="unitAktif = 'semua'"
-            class="rounded-full px-5 py-2.5 text-sm font-semibold transition"
-            :class="
-              unitAktif === 'semua'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'border border-gray-200 bg-white text-gray-600 hover:border-emerald-200 hover:text-emerald-700'
-            "
-          >
-            Semua Program
-          </button>
-
-          <button
-            v-for="unit in units"
-            :key="unit.slug"
-            type="button"
-            @click="unitAktif = unit.slug"
-            :title="unit.name"
-            class="rounded-full px-5 py-2.5 text-sm font-semibold transition"
-            :class="
-              unitAktif === unit.slug
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'border border-gray-200 bg-white text-gray-600 hover:border-emerald-200 hover:text-emerald-700'
-            "
-          >
-            {{ unit.short_name }}
-          </button>
-        </div>
-
-        <div v-if="loadingPrograms" class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div v-if="loadingUnits" class="grid gap-8 md:grid-cols-2">
           <div
-            v-for="n in 6"
+            v-for="n in 2"
             :key="n"
-            class="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm"
-          >
-            <div class="skeleton aspect-4/3 rounded-none"></div>
-
-            <div class="space-y-3 p-7">
-              <div class="skeleton h-3 w-20"></div>
-              <div class="skeleton h-5 w-3/4"></div>
-              <div class="skeleton h-3 w-full"></div>
-              <div class="skeleton h-3 w-5/6"></div>
-            </div>
-          </div>
+            class="skeleton h-80 rounded-3xl"
+          ></div>
         </div>
 
         <div
-          v-else-if="programTampil.length === 0"
-          class="py-20 text-center text-gray-500"
+          v-else-if="units.length"
+          class="mx-auto grid gap-8 md:grid-cols-2"
+          :class="units.length === 1 ? 'max-w-xl md:grid-cols-1' : ''"
         >
-          <template v-if="unitAktif === 'semua'">
-            Belum ada program yang tersedia.
-          </template>
-
-          <template v-else>
-            Belum ada program yang ditandai untuk unit ini.
-          </template>
-        </div>
-
-        <div v-else class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          <article
-            v-for="(program, index) in programTampil"
-            :key="program.id"
-            v-reveal="{ delay: (index % 3) * 110 }"
-            class="group overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:border-emerald-200 hover:shadow-xl"
+          <router-link
+            v-for="(unit, index) in units"
+            :key="unit.slug"
+            v-reveal="{ delay: index * 120 }"
+            :to="`/program/${unit.slug}`"
+            class="group flex flex-col items-center rounded-3xl border border-emerald-100 bg-emerald-50/40 p-10 text-center transition-all duration-300 hover:-translate-y-2 hover:border-emerald-300 hover:bg-white hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-600"
           >
-            <div class="aspect-4/3 overflow-hidden">
-              <img
-                :src="program.image_url"
-                :alt="program.title"
-                loading="lazy"
-                class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+            <UnitLogo
+              :unit="unit"
+              size-class="h-28 w-28 transition-transform duration-500 group-hover:scale-110"
+            />
+
+            <span
+              class="mt-7 inline-flex rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold tracking-wide text-white"
+            >
+              {{ unit.short_name }}
+            </span>
+
+            <h2 class="mt-4 text-2xl font-bold leading-snug text-gray-900">
+              {{ unit.name }}
+            </h2>
+
+            <p
+              v-if="unit.description"
+              class="mt-4 max-w-md leading-7 text-gray-600"
+            >
+              {{ unit.description }}
+            </p>
+
+            <span
+              class="mt-8 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition group-hover:bg-emerald-700"
+            >
+              Lihat Program {{ unit.short_name }}
+              <ArrowRight
+                class="h-4 w-4 transition-transform group-hover:translate-x-1"
               />
-            </div>
+            </span>
 
-            <div class="p-7">
-              <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <span
-                  v-if="program.category"
-                  class="text-sm font-semibold text-emerald-600"
-                >
-                  {{ program.category }}
-                </span>
-
-                <span
-                  v-if="tandaUnit(program)"
-                  class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600"
-                >
-                  {{ tandaUnit(program) }}
-                </span>
-              </div>
-
-              <h2 class="mt-2 text-2xl font-bold text-gray-900">
-                {{ program.title }}
-              </h2>
-
-              <p class="mt-4 leading-7 text-gray-600">
-                {{ program.description }}
-              </p>
-            </div>
-          </article>
+            <span
+              v-if="!loadingPrograms"
+              class="mt-3 text-xs font-medium text-gray-500"
+            >
+              {{ jumlahProgram(unit.slug) }} program
+            </span>
+          </router-link>
         </div>
+
+        <!-- Tabel unit belum dibuat: tampilkan seluruh program seperti biasa -->
+        <ProgramGrid
+          v-else
+          :programs="programs"
+          :loading="loadingPrograms"
+        />
       </div>
     </section>
 
-    <!-- =========================
-         CTA
-    ========================== -->
-    <section class="px-5 pb-20 lg:px-8">
-      <div
-        v-reveal
-        class="mx-auto max-w-7xl overflow-hidden rounded-3xl bg-linear-to-br from-emerald-700 to-emerald-600 px-6 py-16 text-center shadow-2xl shadow-emerald-900/20 sm:px-12"
-      >
-        <h2 class="mx-auto max-w-3xl text-3xl font-bold text-white sm:text-4xl">
-          Dukung kegiatan anak-anak Amanah Ummat.
-        </h2>
-
-        <p class="mx-auto mt-5 max-w-2xl leading-7 text-emerald-100">
-          Dukungan dari Anda dapat membantu keberlangsungan berbagai kegiatan
-          dan kebutuhan anak-anak di Amanah Ummat.
-        </p>
-
-        <router-link
-          to="/donasi"
-          class="mt-8 inline-flex rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-emerald-700 shadow-lg transition hover:bg-gray-100"
-        >
-          Donasi Sekarang
-        </router-link>
-      </div>
-    </section>
+    <ProgramCta :title="teks.cta_title" :description="teks.cta_description" />
   </div>
 </template>
 
 <script setup>
 import { computed, ref, onMounted } from "vue";
+import { ArrowRight } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
-import { cocokUnit, getUnits, labelUnit } from "../lib/units";
+import { cocokUnit, getUnits } from "../lib/units";
+import { getProgramPage, isiProgramPage } from "../lib/programPage";
+import UnitLogo from "../components/UnitLogo.vue";
+import ProgramGrid from "../components/ProgramGrid.vue";
+import ProgramCta from "../components/ProgramCta.vue";
 
 const programs = ref([]);
 const loadingPrograms = ref(true);
+
+const units = ref([]);
+const loadingUnits = ref(true);
+
+const halaman = ref(null);
+const teks = computed(() => isiProgramPage(halaman.value));
 
 const getPrograms = async () => {
   const { data, error } = await supabase
@@ -190,35 +138,17 @@ const getPrograms = async () => {
   loadingPrograms.value = false;
 };
 
-/* =========================================================
-   PENYARING UNIT
-
-   LKSA dan TPQ berbagi satu lokasi tetapi menjalankan program yang
-   berbeda, jadi pengunjung perlu bisa memisahkan keduanya.
-========================================================= */
-
-const units = ref([]);
-const unitAktif = ref("semua");
-
-const programTampil = computed(() => {
-  if (unitAktif.value === "semua") return programs.value;
-
-  return programs.value.filter((program) =>
-    cocokUnit(program.unit, unitAktif.value),
-  );
-});
-
-// Tombol saring hanya berguna setelah pengurus benar-benar menandai
-// programnya. Selama belum ada satu pun yang ditandai, menampilkan
-// tombol "LKSA" dan "TPQ" yang selalu kosong justru membingungkan.
-const saringTampil = computed(
-  () => units.value.length > 1 && programs.value.some((program) => program.unit),
-);
-
-const tandaUnit = (program) => labelUnit(units.value, program.unit);
+const jumlahProgram = (slug) =>
+  programs.value.filter((program) => cocokUnit(program.unit, slug)).length;
 
 onMounted(async () => {
   getPrograms();
+
+  getProgramPage().then(({ data }) => {
+    halaman.value = data;
+  });
+
   units.value = await getUnits();
+  loadingUnits.value = false;
 });
 </script>

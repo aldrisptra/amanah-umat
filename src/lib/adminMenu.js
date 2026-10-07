@@ -6,6 +6,7 @@ import {
   LayoutGrid,
   Milestone,
   Phone,
+  School,
   Sparkles,
   Trophy,
 } from "lucide-vue-next";
@@ -70,6 +71,16 @@ export const ADMIN_MENU = [
     summary: { table: "programs", kind: "list", unit: "program" },
   },
   {
+    to: "/admin/unit-program",
+    label: "Pilihan Unit Program",
+    icon: School,
+    color: "cyan",
+    publicPath: "/program",
+    description:
+      "Logo LKSA & TPQ, kartu pilihan unit, dan tulisan di halaman program tiap unit.",
+    summary: { table: "units", kind: "list", unit: "unit" },
+  },
+  {
     to: "/admin/gallery",
     label: "Galeri Foto",
     icon: Images,
@@ -119,6 +130,7 @@ export const MENU_COLORS = {
   emerald: "bg-emerald-100 text-emerald-700",
   orange: "bg-orange-100 text-orange-700",
   sky: "bg-sky-100 text-sky-700",
+  cyan: "bg-cyan-100 text-cyan-700",
   violet: "bg-violet-100 text-violet-700",
   amber: "bg-amber-100 text-amber-700",
   yellow: "bg-yellow-100 text-yellow-700",

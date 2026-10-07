@@ -34,7 +34,7 @@ ikut terkirim ke browser setiap pengunjung.
 
 ### Pemasangan database (sekali saja)
 
-Sebagian besar tabel sudah ada di Supabase. Lima berkas SQL perlu dijalankan
+Sebagian besar tabel sudah ada di Supabase. Tujuh berkas SQL perlu dijalankan
 untuk mengaktifkan fitur tambahan. Buka Supabase Dashboard -> **SQL Editor**
 -> **New query**, tempel isinya, lalu tekan **Run**:
 
@@ -45,8 +45,10 @@ untuk mengaktifkan fitur tambahan. Buka Supabase Dashboard -> **SQL Editor**
 | [`supabase/achievements.sql`](supabase/achievements.sql) | Menu *Prestasi* — halaman Prestasi beserta pengelolaannya |
 | [`supabase/social_media.sql`](supabase/social_media.sql) | Isian Instagram & YouTube pada menu *Kontak* |
 | [`supabase/gallery_categories.sql`](supabase/gallery_categories.sql) | Tombol *Kelola Kategori* pada menu *Galeri Foto* |
+| [`supabase/unit_lembaga.sql`](supabase/unit_lembaga.sql) | Unit LKSA & TPQ, penanda unit pada program dan foto |
+| [`supabase/program_units.sql`](supabase/program_units.sql) | Menu *Pilihan Unit Program* — logo unit dan tulisan halaman Program (jalankan **setelah** `unit_lembaga.sql`) |
 
-Kelima berkas aman dijalankan berulang kali.
+Semua berkas aman dijalankan berulang kali.
 
 Sebelum dijalankan, website tetap berfungsi normal: navbar memakai nama
 "Amanah Ummat" dengan logo huruf bawaan, halaman Tentang Kami tampil tanpa
@@ -111,6 +113,8 @@ supabase/
   achievements.sql     Tabel prestasi
   social_media.sql     Kolom Instagram & YouTube pada tabel kontak
   gallery_categories.sql  Tabel kategori galeri
+  unit_lembaga.sql     Tabel unit (LKSA & TPQ)
+  program_units.sql    Logo unit & tulisan halaman Program
   router/        Daftar alamat halaman + penjaga login admin
   views/         Halaman publik dan halaman admin
 ```

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
-import { Pencil, Plus, Trash2 } from "lucide-vue-next";
+import { Pencil, Plus, Trash2, TriangleAlert } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
 import { CACHE_FOTO, UKURAN, compressImage } from "../lib/imageCompress";
 import AdminPage from "../components/admin/AdminPage.vue";
@@ -9,7 +9,7 @@ import AdminImageInput from "../components/admin/AdminImageInput.vue";
 import AdminConfirm from "../components/admin/AdminConfirm.vue";
 import AdminAlert from "../components/admin/AdminAlert.vue";
 import { buildStorageFileName } from "../lib/utils";
-import { getUnits, labelUnit, pilihanUnit } from "../lib/units";
+import { cocokUnit, getUnits, labelUnit, pilihanUnit } from "../lib/units";
 
 // ===============================
 // STATE
@@ -29,6 +29,54 @@ const loading = ref(true);
 const units = ref([]);
 const pilihanUnitProgram = computed(() => pilihanUnit(units.value));
 const tandaUnit = (program) => labelUnit(units.value, program.unit);
+
+// Halaman publik kini terpisah per unit (/program/lksa, /program/tpq).
+// Program tanpa unit tidak tampil di halaman unit mana pun, jadi daftar
+// di panel juga dipisah per unit agar mudah diperiksa.
+const TAB_BELUM = "__belum";
+
+const tabAktif = ref("semua");
+
+const programTampil = computed(() => {
+  if (tabAktif.value === "semua") return programs.value;
+
+  if (tabAktif.value === TAB_BELUM) {
+    return programs.value.filter((program) => !program.unit);
+  }
+
+  return programs.value.filter((program) =>
+    cocokUnit(program.unit, tabAktif.value),
+  );
+});
+
+const jumlahBelumDitandai = computed(
+  () => programs.value.filter((program) => !program.unit).length,
+);
+
+const daftarTab = computed(() => {
+  if (!units.value.length) return [];
+
+  const tab = [
+    { value: "semua", label: "Semua", jumlah: programs.value.length },
+    ...units.value.map((unit) => ({
+      value: unit.slug,
+      label: unit.short_name,
+      jumlah: programs.value.filter((program) =>
+        cocokUnit(program.unit, unit.slug),
+      ).length,
+    })),
+  ];
+
+  if (jumlahBelumDitandai.value) {
+    tab.push({
+      value: TAB_BELUM,
+      label: "Belum ditandai",
+      jumlah: jumlahBelumDitandai.value,
+    });
+  }
+
+  return tab;
+});
 
 const showModal = ref(false);
 const saving = ref(false);
@@ -169,6 +217,11 @@ const openAddModal = () => {
 
   resetForm();
 
+  // Menambah dari tab LKSA/TPQ langsung memilihkan unitnya
+  if (units.value.some((unit) => unit.slug === tabAktif.value)) {
+    form.unit = tabAktif.value;
+  }
+
   showModal.value = true;
 };
 
@@ -215,6 +268,13 @@ const saveProgram = async () => {
     if (!editingProgram.value && !selectedImageFile.value) {
       errorMessage.value =
         "Pilih foto program terlebih dahulu sebelum menyimpan.";
+      saving.value = false;
+      return;
+    }
+
+    if (units.value.length && !form.unit) {
+      errorMessage.value =
+        "Pilih unit penyelenggara. Program tanpa unit tidak tampil di halaman program LKSA maupun TPQ.";
       saving.value = false;
       return;
     }
@@ -352,6 +412,17 @@ onMounted(async () => {
           </template>
 
           <template v-else>Belum ada program yang ditambahkan.</template>
+
+          <template v-if="units.length">
+            <br class="sm:hidden" />
+            Logo & tulisan halaman unit diatur di
+            <router-link
+              to="/admin/unit-program"
+              class="font-semibold text-emerald-700 hover:underline"
+            >
+              Pilihan Unit Program</router-link
+            >.
+          </template>
         </p>
 
         <button
@@ -373,6 +444,49 @@ onMounted(async () => {
         successMessage = '';
       "
     />
+
+    <!-- TAB UNIT -->
+    <div v-if="!loading && daftarTab.length" class="mb-5 flex flex-wrap gap-2">
+      <button
+        v-for="tab in daftarTab"
+        :key="tab.value"
+        type="button"
+        @click="tabAktif = tab.value"
+        class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition"
+        :class="
+          tabAktif === tab.value
+            ? tab.value === TAB_BELUM
+              ? 'bg-amber-500 text-white'
+              : 'bg-emerald-600 text-white'
+            : tab.value === TAB_BELUM
+              ? 'border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+              : 'border border-gray-200 bg-white text-gray-600 hover:border-emerald-200 hover:text-emerald-700'
+        "
+      >
+        {{ tab.label }}
+        <span
+          class="rounded-full px-1.5 text-xs tabular-nums"
+          :class="tabAktif === tab.value ? 'bg-white/20' : 'bg-gray-100'"
+        >
+          {{ tab.jumlah }}
+        </span>
+      </button>
+    </div>
+
+    <div
+      v-if="!loading && units.length && jumlahBelumDitandai"
+      class="mb-5 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5"
+    >
+      <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+
+      <p class="text-sm leading-6 text-amber-800">
+        <strong class="font-semibold">
+          {{ jumlahBelumDitandai }} program belum ditandai unitnya
+        </strong>
+        dan tidak tampil di halaman program LKSA maupun TPQ. Buka program
+        tersebut, tekan Ubah, lalu pilih unit penyelenggaranya.
+      </p>
+    </div>
 
     <!-- MEMUAT -->
     <div
@@ -404,10 +518,18 @@ onMounted(async () => {
       </button>
     </div>
 
+    <!-- TAB KOSONG -->
+    <div
+      v-else-if="programTampil.length === 0"
+      class="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center text-sm text-gray-500"
+    >
+      Belum ada program untuk unit ini.
+    </div>
+
     <!-- DAFTAR -->
     <div v-else class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
       <article
-        v-for="program in programs"
+        v-for="program in programTampil"
         :key="program.id"
         class="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white"
       >
@@ -551,10 +673,11 @@ onMounted(async () => {
             v-if="pilihanUnitProgram.length"
             v-slot="{ id }"
             label="Unit penyelenggara"
-            hint="Pilih unit yang menjalankan program ini. Bila dijalankan bersama, pilih gabungannya."
+            hint="Program tampil di halaman unit yang dipilih. Bila dijalankan bersama, pilih gabungannya agar tampil di kedua halaman."
+            required
           >
-            <select :id="id" v-model="form.unit" class="admin-select">
-              <option value="">Belum ditentukan</option>
+            <select :id="id" v-model="form.unit" required class="admin-select">
+              <option value="" disabled>Pilih unit...</option>
 
               <option
                 v-for="pilihan in pilihanUnitProgram"
