@@ -182,6 +182,39 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Kredit KKN -->
+    <div class="border-t border-gray-800">
+      <div
+        class="mx-auto flex max-w-7xl flex-col items-center gap-3 px-5 py-6 text-center sm:flex-row sm:justify-center sm:text-left"
+      >
+        <img
+          src="/logo-insos.jpg"
+          alt="Logo Tim KKN"
+          class="h-14 w-14 shrink-0 rounded-xl object-contain"
+          loading="lazy"
+        />
+
+        <div>
+          <p class="text-sm font-medium text-gray-300">
+            Dikembangkan oleh Tim
+            <a
+              href="https://www.instagram.com/insos.barakah/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="transition hover:text-white"
+            >
+              @insos.barakah
+            </a>
+          </p>
+          <p class="mt-1 text-xs text-gray-400">
+            Institut Teknologi Kalimantan · 2026
+          </p>
+          <p class="mt-1 text-xs text-gray-400">
+            Sebagai program kerja Inovasi Sosial.
+          </p>
+        </div>
+      </div>
+    </div>
     <!-- Copyright -->
     <div class="border-t border-gray-800">
       <div class="mx-auto max-w-7xl px-5 py-6 lg:px-8">
