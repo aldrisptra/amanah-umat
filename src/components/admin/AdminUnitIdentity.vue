@@ -1,28 +1,15 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
-import { RouterLink } from "vue-router";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { TriangleAlert } from "lucide-vue-next";
-import { supabase } from "../lib/supabase";
-import { CACHE_FOTO } from "../lib/imageCompress";
-import AdminPage from "../components/admin/AdminPage.vue";
-import AdminCard from "../components/admin/AdminCard.vue";
-import AdminField from "../components/admin/AdminField.vue";
-import AdminImageInput from "../components/admin/AdminImageInput.vue";
-import AdminSaveBar from "../components/admin/AdminSaveBar.vue";
-import AdminAlert from "../components/admin/AdminAlert.vue";
-import { buildStorageFileName } from "../lib/utils";
-import { useUnsavedChanges } from "../lib/useUnsavedChanges";
-import { tabelUnitBelumAda } from "../lib/units";
-import { PROGRAM_PAGE_BAWAAN, getProgramPage } from "../lib/programPage";
-
-/* =========================================================
-   STATE
-
-   Halaman /program berisi pilihan unit (LKSA / TPQ), masing-masing
-   menuju halaman programnya sendiri. Seluruh tulisan dan logo pada
-   kedua halaman itu diatur dari sini; daftar programnya sendiri tetap
-   di menu Program.
-========================================================= */
+import { supabase } from "../../lib/supabase";
+import { CACHE_FOTO } from "../../lib/imageCompress";
+import AdminCard from "./AdminCard.vue";
+import AdminField from "./AdminField.vue";
+import AdminImageInput from "./AdminImageInput.vue";
+import AdminAlert from "./AdminAlert.vue";
+import { buildStorageFileName } from "../../lib/utils";
+import { useUnsavedChanges } from "../../lib/useUnsavedChanges";
+import { tabelUnitBelumAda } from "../../lib/units";
 
 const loading = ref(true);
 const saving = ref(false);
@@ -34,9 +21,6 @@ const successMessage = ref("");
 const tabelUnitTidakAda = ref(false);
 const fiturBelumAktif = ref(false);
 
-const pageId = ref(null);
-
-const pageForm = reactive({ ...PROGRAM_PAGE_BAWAAN });
 
 // Satu isian per unit. `berkasLogo` dan `pratinjau` tidak ikut disimpan.
 const unitForms = ref([]);
@@ -45,14 +29,11 @@ const ISIAN_UNIT = [
   "short_name",
   "name",
   "description",
-  "page_title",
-  "page_description",
   "logo_url",
 ];
 
 const potretIsian = () =>
   JSON.stringify({
-    page: pageForm,
     units: unitForms.value.map((unit) =>
       Object.fromEntries(ISIAN_UNIT.map((kunci) => [kunci, unit[kunci]])),
     ),
@@ -136,14 +117,7 @@ const muatData = async () => {
   loading.value = true;
   errorMessage.value = "";
 
-  const [hasilUnit, hasilHalaman] = await Promise.all([
-    supabase
-      .from("units")
-      .select("*")
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: true }),
-    getProgramPage(),
-  ]);
+  const hasilUnit = await supabase.from("units").select("*").order("sort_order").order("id");
 
   if (hasilUnit.error) {
     if (tabelUnitBelumAda(hasilUnit.error)) {
@@ -161,14 +135,7 @@ const muatData = async () => {
 
   // Kolom logo_url baru ada setelah supabase/program_units.sql dijalankan.
   // select("*") mengembalikan semua kolom, jadi cukup diperiksa keberadaannya.
-  fiturBelumAktif.value =
-    hasilHalaman.belumAda || (daftar.length > 0 && !("logo_url" in daftar[0]));
-
-  pageId.value = hasilHalaman.data?.id || null;
-
-  for (const kunci of Object.keys(PROGRAM_PAGE_BAWAAN)) {
-    pageForm[kunci] = hasilHalaman.data?.[kunci] ?? PROGRAM_PAGE_BAWAAN[kunci];
-  }
+  fiturBelumAktif.value = daftar.length > 0 && !("logo_url" in daftar[0]);
 
   unitForms.value.forEach(lepasPratinjau);
 
@@ -178,8 +145,6 @@ const muatData = async () => {
     short_name: unit.short_name || "",
     name: unit.name || "",
     description: unit.description || "",
-    page_title: unit.page_title || "",
-    page_description: unit.page_description || "",
     logo_url: unit.logo_url || "",
     berkasLogo: null,
     pratinjau: unit.logo_url || "",
@@ -203,11 +168,6 @@ const simpan = async () => {
   if (kosong) {
     errorMessage.value =
       "Nama singkat dan nama lengkap setiap unit tidak boleh kosong.";
-    return;
-  }
-
-  if (!pageForm.title.trim()) {
-    errorMessage.value = "Judul halaman Program tidak boleh kosong.";
     return;
   }
 
@@ -235,32 +195,10 @@ const simpan = async () => {
           short_name: unit.short_name.trim(),
           name: unit.name.trim(),
           description: unit.description.trim(),
-          page_title: unit.page_title.trim(),
-          page_description: unit.page_description.trim(),
           logo_url: unit.logo_url || null,
         })
         .eq("id", unit.id)
         .select(),
-    );
-
-    const isiHalaman = {
-      ...Object.fromEntries(
-        Object.keys(PROGRAM_PAGE_BAWAAN).map((kunci) => [
-          kunci,
-          pageForm[kunci].trim(),
-        ]),
-      ),
-      updated_at: new Date().toISOString(),
-    };
-
-    permintaan.push(
-      pageId.value
-        ? supabase
-            .from("program_page")
-            .update(isiHalaman)
-            .eq("id", pageId.value)
-            .select()
-        : supabase.from("program_page").insert(isiHalaman).select(),
     );
 
     const hasil = await Promise.all(permintaan);
@@ -279,10 +217,10 @@ const simpan = async () => {
     await muatData();
 
     successMessage.value =
-      "Halaman Program berhasil disimpan. Perubahan langsung tampil di website.";
+      "Identitas unit berhasil disimpan. Perubahan tampil di halaman Tentang Kami.";
   } catch (err) {
-    console.error("Gagal menyimpan halaman program:", err);
-    errorMessage.value = err.message || "Gagal menyimpan halaman program.";
+    console.error("Gagal menyimpan identitas unit:", err);
+    errorMessage.value = err.message || "Gagal menyimpan identitas unit.";
   } finally {
     saving.value = false;
     uploading.value = false;
@@ -293,11 +231,8 @@ onMounted(muatData);
 </script>
 
 <template>
-  <AdminPage
-    title="Pilihan Unit Program"
-    description="Halaman Program kini dibuka dengan pilihan unit (LKSA atau TPQ). Di sini Anda mengatur logo, nama, dan tulisan pada halaman pilihan maupun halaman program tiap unit."
-    public-path="/program"
-  >
+  <section class="mt-8">
+    <h2 class="mb-5 text-2xl font-bold text-gray-900">Identitas LKSA & TPQ</h2>
     <!-- Tabel unit belum dibuat -->
     <div
       v-if="tabelUnitTidakAda || (!loading && fiturBelumAktif)"
@@ -311,8 +246,7 @@ onMounted(muatData);
         </p>
 
         <p class="mt-1 text-sm leading-6 text-amber-800">
-          Tempat penyimpanan logo unit dan tulisan halaman Program belum dibuat
-          di database. Website tetap berjalan normal memakai tulisan bawaan.
+          Tempat penyimpanan identitas atau logo unit belum tersedia di database.
         </p>
 
         <p class="mt-2 text-sm leading-6 text-amber-800">
@@ -338,7 +272,7 @@ onMounted(muatData);
       v-else-if="loading"
       class="rounded-2xl border border-gray-200 bg-white py-20 text-center text-sm text-gray-500"
     >
-      Memuat halaman program...
+      Memuat identitas unit...
     </div>
 
     <form v-else @submit.prevent="simpan">
@@ -352,72 +286,12 @@ onMounted(muatData);
       />
 
       <div class="space-y-5">
-        <!-- =====================================================
-             1. BAGIAN ATAS HALAMAN PILIHAN
-        ====================================================== -->
-        <AdminCard
-          step="1"
-          title="Bagian atas halaman Program"
-          description="Tulisan besar yang menyambut pengunjung sebelum memilih unit."
-        >
-          <AdminField
-            v-slot="{ id }"
-            label="Label kecil"
-            hint="Tulisan hijau kecil di atas judul."
-            required
-            :value="pageForm.eyebrow"
-            :max="30"
-          >
-            <input
-              :id="id"
-              v-model="pageForm.eyebrow"
-              type="text"
-              required
-              class="admin-input"
-            />
-          </AdminField>
-
-          <AdminField
-            v-slot="{ id }"
-            label="Judul"
-            required
-            :value="pageForm.title"
-            :max="70"
-          >
-            <input
-              :id="id"
-              v-model="pageForm.title"
-              type="text"
-              required
-              class="admin-input"
-            />
-          </AdminField>
-
-          <AdminField
-            v-slot="{ id }"
-            label="Penjelasan"
-            hint="Satu atau dua kalimat, misalnya ajakan memilih unit."
-            :value="pageForm.description"
-            :max="200"
-          >
-            <textarea
-              :id="id"
-              v-model="pageForm.description"
-              rows="3"
-              class="admin-textarea"
-            ></textarea>
-          </AdminField>
-        </AdminCard>
-
-        <!-- =====================================================
-             2. TIAP UNIT
-        ====================================================== -->
         <AdminCard
           v-for="(unit, index) in unitForms"
           :key="unit.id"
-          :step="index + 2"
+          :step="index + 1"
           :title="`Unit ${unit.short_name || unit.slug}`"
-          :description="`Kartu pilihan di halaman Program, dan halaman /program/${unit.slug} yang terbuka saat kartu itu diklik.`"
+          description="Nama, logo, dan penjelasan unit yang tampil di halaman Tentang Kami."
         >
           <div>
             <p class="text-sm font-semibold text-gray-800">
@@ -475,7 +349,7 @@ onMounted(muatData);
           <AdminField
             v-slot="{ id }"
             label="Nama lengkap"
-            hint="Tampil sebagai judul kartu pilihan, juga di bagian Unit Kami pada halaman Tentang Kami."
+            hint="Tampil di bagian Unit Kami pada halaman Tentang Kami."
             required
             :value="unit.name"
             :max="80"
@@ -492,7 +366,7 @@ onMounted(muatData);
           <AdminField
             v-slot="{ id }"
             label="Penjelasan singkat"
-            hint="Tampil di kartu pilihan dan di halaman Tentang Kami. Cukup 1-2 kalimat."
+            hint="Tampil di halaman Tentang Kami. Cukup 1-2 kalimat."
             :value="unit.description"
             :max="220"
           >
@@ -504,108 +378,10 @@ onMounted(muatData);
             ></textarea>
           </AdminField>
 
-          <div class="rounded-2xl bg-gray-50 p-4">
-            <p class="text-sm font-semibold text-gray-800">
-              Halaman program {{ unit.short_name }}
-            </p>
-
-            <p class="mt-1 text-xs leading-5 text-gray-500">
-              Bagian atas halaman yang terbuka setelah kartu
-              {{ unit.short_name }} diklik.
-            </p>
-
-            <div class="mt-4 space-y-5">
-              <AdminField
-                v-slot="{ id }"
-                label="Judul halaman"
-                :hint="`Bila kosong, tertulis &quot;Program ${unit.short_name}&quot;.`"
-                :value="unit.page_title"
-                :max="70"
-              >
-                <input
-                  :id="id"
-                  v-model="unit.page_title"
-                  type="text"
-                  :placeholder="`Program ${unit.short_name}`"
-                  class="admin-input"
-                />
-              </AdminField>
-
-              <AdminField
-                v-slot="{ id }"
-                label="Penjelasan halaman"
-                hint="Bila kosong, memakai penjelasan singkat unit di atas."
-                :value="unit.page_description"
-                :max="300"
-              >
-                <textarea
-                  :id="id"
-                  v-model="unit.page_description"
-                  rows="3"
-                  class="admin-textarea"
-                ></textarea>
-              </AdminField>
-            </div>
-          </div>
         </AdminCard>
 
-        <!-- =====================================================
-             3. AJAKAN DONASI
-        ====================================================== -->
-        <AdminCard
-          :step="unitForms.length + 2"
-          title="Ajakan donasi"
-          description="Kotak hijau di bagian bawah halaman Program dan halaman tiap unit."
-        >
-          <AdminField
-            v-slot="{ id }"
-            label="Judul"
-            required
-            :value="pageForm.cta_title"
-            :max="70"
-          >
-            <input
-              :id="id"
-              v-model="pageForm.cta_title"
-              type="text"
-              required
-              class="admin-input"
-            />
-          </AdminField>
-
-          <AdminField
-            v-slot="{ id }"
-            label="Penjelasan"
-            :value="pageForm.cta_description"
-            :max="200"
-          >
-            <textarea
-              :id="id"
-              v-model="pageForm.cta_description"
-              rows="3"
-              class="admin-textarea"
-            ></textarea>
-          </AdminField>
-        </AdminCard>
-
-        <p class="text-sm text-gray-500">
-          Daftar program tiap unit diatur di menu
-          <RouterLink
-            to="/admin/program"
-            class="font-semibold text-emerald-700 hover:underline"
-          >
-            Program
-          </RouterLink>
-          — pilih unit penyelenggara pada setiap program.
-        </p>
       </div>
-
-      <AdminSaveBar
-        :dirty="adaPerubahan"
-        :saving="saving"
-        :busy-label="uploading ? 'Mengunggah logo...' : ''"
-        label="Simpan Halaman Program"
-      />
+      <button type="submit" :disabled="saving || !adaPerubahan" class="mt-5 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white disabled:opacity-50">{{ saving ? 'Menyimpan...' : 'Simpan Identitas Unit' }}</button>
     </form>
-  </AdminPage>
+  </section>
 </template>

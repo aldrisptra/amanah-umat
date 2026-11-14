@@ -1,15 +1,16 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
-import { Pencil, Plus, Trash2, TriangleAlert } from "lucide-vue-next";
+import { Pencil, Plus, Trash2 } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
+import { getProgramCategories, programCategoryOptions } from "../lib/programCategories";
 import { CACHE_FOTO, UKURAN, compressImage } from "../lib/imageCompress";
+import AdminProgramText from "../components/admin/AdminProgramText.vue";
 import AdminPage from "../components/admin/AdminPage.vue";
 import AdminField from "../components/admin/AdminField.vue";
 import AdminImageInput from "../components/admin/AdminImageInput.vue";
 import AdminConfirm from "../components/admin/AdminConfirm.vue";
 import AdminAlert from "../components/admin/AdminAlert.vue";
 import { buildStorageFileName } from "../lib/utils";
-import { cocokUnit, getUnits, labelUnit, pilihanUnit } from "../lib/units";
 
 // ===============================
 // STATE
@@ -18,65 +19,55 @@ import { cocokUnit, getUnits, labelUnit, pilihanUnit } from "../lib/units";
 const programs = ref([]);
 const loading = ref(true);
 
-/* =========================
-   UNIT LEMBAGA
-
-   LKSA dan TPQ menjalankan program yang berbeda. Daftar unitnya baru
-   tersedia setelah supabase/unit_lembaga.sql dijalankan; selama belum,
-   pilihan unit cukup tidak ditampilkan dan panel tetap berfungsi penuh.
-========================= */
-
-const units = ref([]);
-const pilihanUnitProgram = computed(() => pilihanUnit(units.value));
-const tandaUnit = (program) => labelUnit(units.value, program.unit);
-
-// Halaman publik kini terpisah per unit (/program/lksa, /program/tpq).
-// Program tanpa unit tidak tampil di halaman unit mana pun, jadi daftar
-// di panel juga dipisah per unit agar mudah diperiksa.
-const TAB_BELUM = "__belum";
-
-const tabAktif = ref("semua");
-
-const programTampil = computed(() => {
-  if (tabAktif.value === "semua") return programs.value;
-
-  if (tabAktif.value === TAB_BELUM) {
-    return programs.value.filter((program) => !program.unit);
+const tabAktif = ref("Semua");
+const savedCategories = ref([]);
+const categoriesAvailable = ref(false);
+const categories = computed(() => programCategoryOptions(savedCategories.value, programs.value));
+const showCategories = ref(false);
+const categoryName = ref("");
+const editingCategory = ref(null);
+const deletingCategory = ref(null);
+const categoryBusy = ref(false);
+const categoryError = ref("");
+async function loadCategories() {
+  try {
+    const result = await getProgramCategories();
+    savedCategories.value = result.names; categoriesAvailable.value = result.available;
+  } catch (error) { listErrorMessage.value = "Gagal memuat jenis program: " + error.message; }
+}
+async function saveCategory() {
+  const name = categoryName.value.trim();
+  if (!name || categoryBusy.value) return;
+  if (name.toLowerCase() === "semua" || categories.value.some(n => n !== editingCategory.value && n.toLowerCase() === name.toLowerCase())) {
+    categoryError.value = "Nama sudah digunakan atau merupakan pilihan Semua."; return;
   }
-
-  return programs.value.filter((program) =>
-    cocokUnit(program.unit, tabAktif.value),
-  );
-});
-
-const jumlahBelumDitandai = computed(
-  () => programs.value.filter((program) => !program.unit).length,
-);
-
-const daftarTab = computed(() => {
-  if (!units.value.length) return [];
-
-  const tab = [
-    { value: "semua", label: "Semua", jumlah: programs.value.length },
-    ...units.value.map((unit) => ({
-      value: unit.slug,
-      label: unit.short_name,
-      jumlah: programs.value.filter((program) =>
-        cocokUnit(program.unit, unit.slug),
-      ).length,
-    })),
-  ];
-
-  if (jumlahBelumDitandai.value) {
-    tab.push({
-      value: TAB_BELUM,
-      label: "Belum ditandai",
-      jumlah: jumlahBelumDitandai.value,
-    });
-  }
-
-  return tab;
-});
+  categoryBusy.value = true; categoryError.value = "";
+  try {
+    const result = editingCategory.value !== null
+      ? await supabase.from("program_categories").update({ name }).eq("name", editingCategory.value).select()
+      : await supabase.from("program_categories").insert({ name }).select();
+    if (result.error) throw result.error;
+    if (!result.data?.length) throw new Error("Perubahan tidak tersimpan. Periksa sesi admin.");
+    if (tabAktif.value === editingCategory.value) tabAktif.value = name;
+    categoryName.value = ""; editingCategory.value = null;
+    await Promise.all([loadCategories(), getPrograms()]);
+  } catch (error) { categoryError.value = error.message; }
+  finally { categoryBusy.value = false; }
+}
+async function deleteCategory() {
+  if (deletingCategory.value === null || categoryBusy.value) return;
+  categoryBusy.value = true; categoryError.value = "";
+  try {
+    const { data, error } = await supabase.from("program_categories").delete().eq("name", deletingCategory.value).select();
+    if (error) throw error;
+    if (!data?.length) throw new Error("Jenis program tidak terhapus. Periksa sesi admin.");
+    if (tabAktif.value === deletingCategory.value) tabAktif.value = "Semua";
+    if (editingCategory.value === deletingCategory.value) { editingCategory.value = null; categoryName.value = ""; }
+    await Promise.all([loadCategories(), getPrograms()]);
+  } catch (error) { categoryError.value = error.message; }
+  finally { categoryBusy.value = false; deletingCategory.value = null; }
+}
+const programTampil = computed(() => tabAktif.value === "Semua" ? programs.value : programs.value.filter(p => p.category?.trim() === tabAktif.value));
 
 const showModal = ref(false);
 const saving = ref(false);
@@ -98,7 +89,6 @@ const listErrorMessage = ref("");
 const form = reactive({
   title: "",
   category: "",
-  unit: "",
   description: "",
   image_url: "",
 });
@@ -202,7 +192,6 @@ const getPrograms = async () => {
 const resetForm = () => {
   form.title = "";
   form.category = "";
-  form.unit = "";
   form.description = "";
   form.image_url = "";
   selectedImageFile.value = null;
@@ -217,10 +206,6 @@ const openAddModal = () => {
 
   resetForm();
 
-  // Menambah dari tab LKSA/TPQ langsung memilihkan unitnya
-  if (units.value.some((unit) => unit.slug === tabAktif.value)) {
-    form.unit = tabAktif.value;
-  }
 
   showModal.value = true;
 };
@@ -232,7 +217,6 @@ const openEditModal = (program) => {
 
   form.title = program.title || "";
   form.category = program.category || "";
-  form.unit = program.unit || "";
   form.description = program.description || "";
   form.image_url = program.image_url || "";
 
@@ -272,13 +256,12 @@ const saveProgram = async () => {
       return;
     }
 
-    if (units.value.length && !form.unit) {
-      errorMessage.value =
-        "Pilih unit penyelenggara. Program tanpa unit tidak tampil di halaman program LKSA maupun TPQ.";
-      saving.value = false;
-      return;
+    if (form.category.trim().toLowerCase() === "semua") throw new Error("Gunakan nama jenis kegiatan selain Semua.");
+    if (categoriesAvailable.value && form.category.trim()) {
+      const { error } = await supabase.from("program_categories").upsert({ name: form.category.trim() }, { onConflict: "name", ignoreDuplicates: true });
+      if (error) throw error;
+      await loadCategories();
     }
-
     let uploadedImageUrl = form.image_url.trim();
 
     if (selectedImageFile.value) {
@@ -287,17 +270,11 @@ const saveProgram = async () => {
 
     const payload = {
       title: form.title.trim(),
-      category: form.category.trim(),
+      category: form.category.trim() || null,
       description: form.description.trim(),
       image_url: uploadedImageUrl,
     };
 
-    // Kolom unit baru ada setelah supabase/unit_lembaga.sql dijalankan.
-    // Menyertakannya sebelum itu akan ditolak Supabase (PGRST204), jadi
-    // panel harus tetap bisa menyimpan program tanpa kolom tersebut.
-    if (units.value.length) {
-      payload.unit = form.unit || null;
-    }
 
     let result;
 
@@ -383,10 +360,7 @@ const deleteProgram = async () => {
   }
 };
 
-onMounted(async () => {
-  getPrograms();
-  units.value = await getUnits();
-});
+onMounted(() => { getPrograms(); loadCategories(); });
 </script>
 
 <template>
@@ -413,18 +387,11 @@ onMounted(async () => {
 
           <template v-else>Belum ada program yang ditambahkan.</template>
 
-          <template v-if="units.length">
-            <br class="sm:hidden" />
-            Logo & tulisan halaman unit diatur di
-            <router-link
-              to="/admin/unit-program"
-              class="font-semibold text-emerald-700 hover:underline"
-            >
-              Pilihan Unit Program</router-link
-            >.
-          </template>
+
         </p>
 
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <button type="button" @click="showCategories = true" class="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Kelola Program</button>
         <button
           type="button"
           @click="openAddModal"
@@ -433,8 +400,11 @@ onMounted(async () => {
           <Plus class="h-4 w-4" />
           Tambah Program
         </button>
+        </div>
       </div>
     </template>
+
+    <AdminProgramText />
 
     <AdminAlert
       :error="listErrorMessage"
@@ -445,47 +415,11 @@ onMounted(async () => {
       "
     />
 
-    <!-- TAB UNIT -->
-    <div v-if="!loading && daftarTab.length" class="mb-5 flex flex-wrap gap-2">
-      <button
-        v-for="tab in daftarTab"
-        :key="tab.value"
-        type="button"
-        @click="tabAktif = tab.value"
-        class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition"
-        :class="
-          tabAktif === tab.value
-            ? tab.value === TAB_BELUM
-              ? 'bg-amber-500 text-white'
-              : 'bg-emerald-600 text-white'
-            : tab.value === TAB_BELUM
-              ? 'border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
-              : 'border border-gray-200 bg-white text-gray-600 hover:border-emerald-200 hover:text-emerald-700'
-        "
-      >
-        {{ tab.label }}
-        <span
-          class="rounded-full px-1.5 text-xs tabular-nums"
-          :class="tabAktif === tab.value ? 'bg-white/20' : 'bg-gray-100'"
-        >
-          {{ tab.jumlah }}
-        </span>
-      </button>
-    </div>
-
-    <div
-      v-if="!loading && units.length && jumlahBelumDitandai"
-      class="mb-5 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5"
-    >
-      <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-
-      <p class="text-sm leading-6 text-amber-800">
-        <strong class="font-semibold">
-          {{ jumlahBelumDitandai }} program belum ditandai unitnya
-        </strong>
-        dan tidak tampil di halaman program LKSA maupun TPQ. Buka program
-        tersebut, tekan Ubah, lalu pilih unit penyelenggaranya.
-      </p>
+    <div class="mb-5 flex flex-wrap gap-2">
+      <button v-for="category in ['Semua', ...categories]" :key="category" type="button"
+        @click="tabAktif = category" :aria-pressed="tabAktif === category"
+        class="rounded-full px-4 py-2 text-sm font-semibold"
+        :class="tabAktif === category ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'">{{ category }}</button>
     </div>
 
     <!-- MEMUAT -->
@@ -523,7 +457,7 @@ onMounted(async () => {
       v-else-if="programTampil.length === 0"
       class="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center text-sm text-gray-500"
     >
-      Belum ada program untuk unit ini.
+      Belum ada program pada kategori ini.
     </div>
 
     <!-- DAFTAR -->
@@ -539,7 +473,7 @@ onMounted(async () => {
             :src="program.image_url"
             :alt="program.title"
             loading="lazy"
-            class="h-full w-full object-cover"
+            class="h-full w-full object-contain"
           />
 
           <div
@@ -559,12 +493,7 @@ onMounted(async () => {
               {{ program.category }}
             </span>
 
-            <span
-              v-if="tandaUnit(program)"
-              class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600"
-            >
-              {{ tandaUnit(program) }}
-            </span>
+
           </div>
 
           <h2 class="mt-2 text-lg font-bold text-gray-900">
@@ -633,6 +562,7 @@ onMounted(async () => {
         </div>
 
         <form @submit.prevent="saveProgram" class="space-y-5 px-6 py-6">
+          <datalist id="program-categories"><option v-for="category in categories" :key="category" :value="category" /></datalist>
           <AdminAlert :error="errorMessage" @dismiss="errorMessage = ''" />
 
           <AdminField
@@ -656,38 +586,21 @@ onMounted(async () => {
           <AdminField
             v-slot="{ id }"
             label="Kategori"
-            hint="Satu kata pengelompokan, tampil sebagai label kecil di atas nama program."
+            hint="Isi jenis kegiatan sendiri atau pilih kategori yang sudah ada. Kategori menjadi pilihan filter di halaman Program."
             :value="form.category"
             :max="24"
           >
             <input
               :id="id"
               v-model="form.category"
+              list="program-categories"
               type="text"
               placeholder="Contoh: Pendidikan"
               class="admin-input"
             />
           </AdminField>
 
-          <AdminField
-            v-if="pilihanUnitProgram.length"
-            v-slot="{ id }"
-            label="Unit penyelenggara"
-            hint="Program tampil di halaman unit yang dipilih. Bila dijalankan bersama, pilih gabungannya agar tampil di kedua halaman."
-            required
-          >
-            <select :id="id" v-model="form.unit" required class="admin-select">
-              <option value="" disabled>Pilih unit...</option>
 
-              <option
-                v-for="pilihan in pilihanUnitProgram"
-                :key="pilihan.value"
-                :value="pilihan.value"
-              >
-                {{ pilihan.label }}
-              </option>
-            </select>
-          </AdminField>
 
           <AdminField
             v-slot="{ id }"
@@ -718,8 +631,9 @@ onMounted(async () => {
               :preview-url="imagePreviewUrl"
               :file-name="selectedImageFile?.name || ''"
               :disabled="saving"
-              hint="Foto kegiatan ini berlangsung. Foto mendatar (landscape) akan tampil paling rapi."
+              hint="Foto kegiatan ditampilkan utuh tanpa terpotong. Foto tegak maupun mendatar bisa digunakan."
               aspect="4/3"
+              fit="contain"
               @select="handleImageSelect"
               @clear="handleImageClear"
               @error="errorMessage = $event"
@@ -753,6 +667,34 @@ onMounted(async () => {
         </form>
       </div>
     </div>
+
+    <div v-if="showCategories" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-5" @click.self="!categoryBusy && (showCategories = false)">
+      <section role="dialog" aria-modal="true" aria-labelledby="category-title" class="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-6">
+        <div class="flex items-center justify-between gap-4">
+          <h2 id="category-title" class="text-xl font-bold">Kelola Program</h2>
+          <button type="button" :disabled="categoryBusy" @click="showCategories = false" aria-label="Tutup" class="p-2">&#215;</button>
+        </div>
+        <p class="mt-3 text-sm text-gray-600">Atur jenis kegiatan untuk pilihan kategori dan filter halaman Program. Mengubah nama juga memperbarui label program yang memakainya.</p>
+        <p v-if="!categoriesAvailable" class="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Jalankan supabase/program_categories.sql di Supabase SQL Editor untuk mengaktifkan pengelolaan jenis program.</p>
+        <AdminAlert class="mt-4" :error="categoryError" @dismiss="categoryError = ''" />
+        <form class="my-5 flex gap-2" @submit.prevent="saveCategory">
+          <input v-model="categoryName" aria-label="Nama jenis kegiatan" required maxlength="60" placeholder="Nama jenis kegiatan" class="admin-input min-w-0 flex-1" :disabled="categoryBusy || !categoriesAvailable" />
+          <button class="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white disabled:opacity-50" :disabled="categoryBusy || !categoriesAvailable">{{ editingCategory !== null ? 'Simpan' : 'Tambah' }}</button>
+          <button v-if="editingCategory !== null" type="button" :disabled="categoryBusy" @click="editingCategory = null; categoryName = ''">Batal</button>
+        </form>
+        <ul class="space-y-3">
+          <li v-for="category in categories" :key="category" class="flex items-center gap-3 rounded-xl border border-gray-200 p-3">
+            <span class="flex-1 font-semibold">{{ category }}</span>
+            <button type="button" :disabled="categoryBusy || !categoriesAvailable" @click="editingCategory = category; categoryName = category" class="text-emerald-700 disabled:opacity-50">Ubah</button>
+            <button type="button" :disabled="categoryBusy || !categoriesAvailable" @click="deletingCategory = category" class="text-red-600 disabled:opacity-50">Hapus</button>
+          </li>
+        </ul>
+        <p v-if="!categories.length" class="text-sm text-gray-500">Belum ada jenis kegiatan.</p>
+      </section>
+    </div>
+    <AdminConfirm :open="deletingCategory !== null" danger :busy="categoryBusy" title="Hapus jenis program?"
+      :message="`Jenis ${deletingCategory || ''} akan dihapus. Programnya tetap tersimpan di Semua dengan kategori dikosongkan.`"
+      confirm-label="Ya, hapus" @confirm="deleteCategory" @cancel="deletingCategory = null" />
 
     <!-- KONFIRMASI HAPUS -->
     <AdminConfirm

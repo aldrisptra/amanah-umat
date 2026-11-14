@@ -3,6 +3,7 @@ import { onMounted, ref } from "vue";
 import { supabase } from "../lib/supabase";
 import { ambilIkonNilai } from "../lib/aboutIcons";
 import { getUnits } from "../lib/units";
+import UnitLogo from "../components/UnitLogo.vue";
 
 const about = ref(null);
 const loadingAbout = ref(true);
@@ -204,6 +205,7 @@ onMounted(async () => {
               v-reveal="{ delay: index * 100 }"
               class="rounded-3xl border border-emerald-100 bg-emerald-50/50 p-8"
             >
+              <UnitLogo v-if="unit.logo_url" :unit="unit" size-class="mb-5 h-20 w-20" />
               <span
                 class="inline-flex rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold tracking-wide text-white"
               >

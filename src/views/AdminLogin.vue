@@ -91,10 +91,13 @@ const terkunci = computed(() => detikTerkunci.value > 0);
 const sisaWaktuTeks = computed(() => formatSisaWaktu(detikTerkunci.value));
 
 const perbaruiKuncian = () => {
+  const sebelumnyaTerkunci = detikTerkunci.value > 0;
   detikTerkunci.value = sisaDetikTerkunci();
 
-  if (detikTerkunci.value === 0) {
-    percobaanTersisa.value = sisaPercobaan();
+  percobaanTersisa.value = sisaPercobaan();
+  if (sebelumnyaTerkunci && detikTerkunci.value === 0) {
+    errorMessage.value = "";
+    infoMessage.value = "Jeda sudah berakhir. Silakan coba masuk kembali.";
   }
 };
 
@@ -105,6 +108,7 @@ onMounted(() => {
   // Hitungan mundur berjalan tiap detik agar pengurus tahu persis kapan
   // bisa mencoba lagi, alih-alih menebak-nebak.
   pewaktu = setInterval(perbaruiKuncian, 1000);
+  window.addEventListener("storage", perbaruiKuncian);
 
   // Alasan mengapa pengguna sampai di halaman ini, dikirim oleh panel admin
   const alasan = route.query.alasan;
@@ -122,6 +126,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (pewaktu) clearInterval(pewaktu);
+  window.removeEventListener("storage", perbaruiKuncian);
 });
 
 /* =========================================================
@@ -129,6 +134,7 @@ onBeforeUnmount(() => {
 ========================================================= */
 
 const login = async () => {
+  perbaruiKuncian();
   if (loading.value || terkunci.value) return;
 
   errorMessage.value = "";
@@ -161,7 +167,12 @@ const login = async () => {
 
       // Masalah jaringan tidak dihitung sebagai percobaan gagal: pengurus
       // tidak boleh terkunci hanya karena internetnya sedang buruk.
-      const salahKredensial = error.status === 400 || error.status === 401;
+      const salahKredensial = error.code === "invalid_credentials" || (!error.code && [400, 401].includes(error.status));
+
+      if (error.status === 429) {
+        errorMessage.value = "Terlalu banyak permintaan login ke server. Tunggu beberapa saat sebelum mencoba lagi.";
+        return;
+      }
 
       if (!salahKredensial) {
         errorMessage.value =
@@ -513,7 +524,7 @@ const kirimTautanReset = async () => {
 
             <!-- Pesan gagal -->
             <div
-              v-if="errorMessage"
+              v-if="errorMessage && !terkunci"
               role="alert"
               class="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5"
             >

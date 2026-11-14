@@ -48,7 +48,7 @@ const routes = [
   {
     path: "/program/:unit",
     name: "programUnit",
-    component: () => import("../views/ProgramUnit.vue"),
+    redirect: "/program",
     meta: {
       title: "Program",
       description:
@@ -61,9 +61,9 @@ const routes = [
     name: "gallery",
     component: () => import("../views/Gallery.vue"),
     meta: {
-      title: "Galeri Kegiatan",
+      title: "Galeri Anak",
       description:
-        "Dokumentasi kegiatan dan keseharian anak-anak LKSA Amanah Ummat Balikpapan, mulai dari belajar mengaji sampai kegiatan sosial bersama masyarakat.",
+        "Potret anak-anak binaan Amanah Ummat yang tumbuh dan belajar bersama.",
     },
   },
 
@@ -164,7 +164,7 @@ const routes = [
       {
         path: "unit-program",
         name: "AdminProgramUnits",
-        component: () => import("../views/AdminProgramUnits.vue"),
+        redirect: "/admin/program",
       },
       {
         path: "gallery",

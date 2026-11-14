@@ -13,7 +13,7 @@ export const PROGRAM_PAGE_BAWAAN = {
   eyebrow: "Program Kami",
   title: "Kegiatan untuk tumbuh dan berkembang bersama.",
   description:
-    "Amanah Ummat menaungi dua unit dengan program masing-masing. Pilih unit untuk melihat kegiatannya.",
+    "Berbagai kegiatan anak-anak Amanah Ummat untuk belajar, berkarya, dan tumbuh bersama. Pilih kategori kegiatan untuk melihat programnya.",
   cta_title: "Dukung kegiatan anak-anak Amanah Ummat.",
   cta_description:
     "Dukungan dari Anda dapat membantu keberlangsungan berbagai kegiatan dan kebutuhan anak-anak di Amanah Ummat.",
@@ -55,5 +55,8 @@ export const isiProgramPage = (data) => {
     if (data?.[kunci]?.trim()) hasil[kunci] = data[kunci];
   }
 
+  if (hasil.description === "Amanah Ummat menaungi dua unit dengan program masing-masing. Pilih unit untuk melihat kegiatannya.") {
+    hasil.description = PROGRAM_PAGE_BAWAAN.description;
+  }
   return hasil;
 };

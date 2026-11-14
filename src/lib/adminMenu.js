@@ -6,7 +6,6 @@ import {
   LayoutGrid,
   Milestone,
   Phone,
-  School,
   Sparkles,
   Trophy,
 } from "lucide-vue-next";
@@ -47,7 +46,7 @@ export const ADMIN_MENU = [
     icon: BookOpen,
     color: "orange",
     publicPath: "/tentang-kami",
-    description: "Cerita, sejarah, dan foto utama tentang LKSA Amanah Ummat.",
+    description: "Cerita, foto utama, dan identitas unit LKSA serta TPQ Amanah Ummat.",
     summary: { table: "about", kind: "single" },
   },
   {
@@ -71,22 +70,12 @@ export const ADMIN_MENU = [
     summary: { table: "programs", kind: "list", unit: "program" },
   },
   {
-    to: "/admin/unit-program",
-    label: "Pilihan Unit Program",
-    icon: School,
-    color: "cyan",
-    publicPath: "/program",
-    description:
-      "Logo LKSA & TPQ, kartu pilihan unit, dan tulisan di halaman program tiap unit.",
-    summary: { table: "units", kind: "list", unit: "unit" },
-  },
-  {
     to: "/admin/gallery",
-    label: "Galeri Foto",
+    label: "Galeri Anak",
     icon: Images,
     color: "violet",
     publicPath: "/galeri",
-    description: "Kumpulan foto kegiatan dan keseharian anak-anak.",
+    description: "Kelola foto dan keterangan anak-anak binaan berdasarkan kelompoknya.",
     summary: { table: "gallery", kind: "list", unit: "foto" },
   },
   {

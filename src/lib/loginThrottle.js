@@ -14,37 +14,42 @@
 
 const KUNCI_PENYIMPANAN = "amanahummat.percobaan-login";
 
-export const MAKS_PERCOBAAN = 5;
+// Lebih dari lima kegagalan: kegagalan keenam memulai jeda.
+export const MAKS_PERCOBAAN = 6;
 export const MENIT_TERKUNCI = 15;
 
 const KOSONG = { gagal: 0, terkunciSampai: 0 };
+let cadangan = { ...KOSONG };
 
 // localStorage bisa dilarang browser (mode penyamaran, cookie diblokir).
 // Bila itu terjadi, login harus tetap bisa dipakai - jadi kegagalannya
 // diabaikan, bukan dilempar ke pengguna.
-const baca = () => {
-  try {
-    const isi = localStorage.getItem(KUNCI_PENYIMPANAN);
-
-    if (!isi) return { ...KOSONG };
-
-    const data = JSON.parse(isi);
-
-    return {
-      gagal: Number(data?.gagal) || 0,
-      terkunciSampai: Number(data?.terkunciSampai) || 0,
-    };
-  } catch {
-    return { ...KOSONG };
-  }
-};
-
 const tulis = (data) => {
+  cadangan = { ...data };
   try {
     localStorage.setItem(KUNCI_PENYIMPANAN, JSON.stringify(data));
   } catch {
-    // Diabaikan dengan sengaja
+    // Tetap batasi percobaan selama halaman terbuka bila storage ditolak.
   }
+};
+
+const baca = () => {
+  let data = cadangan;
+  try {
+    const isi = localStorage.getItem(KUNCI_PENYIMPANAN);
+    data = isi ? JSON.parse(isi) : KOSONG;
+  } catch {
+    // Gunakan salinan memori bila penyimpanan browser tidak tersedia.
+  }
+  const hasil = {
+    gagal: Number.isSafeInteger(data?.gagal) && data.gagal > 0 ? data.gagal : 0,
+    terkunciSampai: Number.isFinite(data?.terkunciSampai) && data.terkunciSampai > 0 ? data.terkunciSampai : 0,
+  };
+  if (hasil.terkunciSampai && hasil.terkunciSampai <= Date.now()) {
+    tulis(KOSONG);
+    return { ...KOSONG };
+  }
+  return hasil;
 };
 
 /** Sisa detik sampai kuncian berakhir. 0 berarti tidak sedang terkunci. */
@@ -68,6 +73,8 @@ export const sisaPercobaan = () => {
  */
 export const catatGagal = () => {
   const data = baca();
+  // Permintaan dari tab lain yang selesai belakangan tidak memperpanjang jeda.
+  if (data.terkunciSampai > Date.now()) return { terkunci: true, sisa: 0 };
   const gagal = data.gagal + 1;
 
   if (gagal >= MAKS_PERCOBAAN) {
@@ -83,6 +90,7 @@ export const catatGagal = () => {
 
 /** Dipanggil setelah login berhasil, supaya hitungannya kembali bersih. */
 export const resetPercobaan = () => {
+  cadangan = { ...KOSONG };
   try {
     localStorage.removeItem(KUNCI_PENYIMPANAN);
   } catch {

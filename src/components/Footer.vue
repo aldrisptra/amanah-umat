@@ -88,7 +88,7 @@ onMounted(() => {
             to="/galeri"
             class="text-gray-400 transition hover:text-white"
           >
-            Galeri
+            Galeri Anak
           </router-link>
 
           <router-link

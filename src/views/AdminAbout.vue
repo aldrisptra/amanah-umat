@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { supabase } from "../lib/supabase";
 import { CACHE_FOTO, UKURAN, compressImage } from "../lib/imageCompress";
+import AdminUnitIdentity from "../components/admin/AdminUnitIdentity.vue";
 import AdminPage from "../components/admin/AdminPage.vue";
 import AdminCard from "../components/admin/AdminCard.vue";
 import AdminField from "../components/admin/AdminField.vue";
@@ -286,5 +287,6 @@ onMounted(getAbout);
         label="Simpan Tentang Kami"
       />
     </form>
+    <AdminUnitIdentity />
   </AdminPage>
 </template>

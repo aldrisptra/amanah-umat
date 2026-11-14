@@ -1,15 +1,12 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import {
-  ChevronDown,
-  ChevronUp,
   Pencil,
   Plus,
-  Tags,
   Trash2,
 } from "lucide-vue-next";
 import { supabase } from "../lib/supabase";
-import { getUnits, pilihanUnit } from "../lib/units";
+import { DEFAULT_GROUPS, getGalleryGroups, galleryGroup, galleryGroupLabel, matchesGalleryGroup } from "../lib/galleryGroups";
 import { CACHE_FOTO, UKURAN, compressImage } from "../lib/imageCompress";
 import AdminPage from "../components/admin/AdminPage.vue";
 import AdminField from "../components/admin/AdminField.vue";
@@ -18,17 +15,54 @@ import AdminConfirm from "../components/admin/AdminConfirm.vue";
 import AdminAlert from "../components/admin/AdminAlert.vue";
 import { buildStorageFileName } from "../lib/utils";
 
-// Dipakai selama tabel gallery_categories belum dibuat, supaya galeri tetap
-// berjalan seperti sebelumnya alih-alih kehilangan seluruh pilihan kategori.
-const KATEGORI_BAWAAN = ["Pendidikan", "Keagamaan", "Kebersamaan", "Kegiatan"];
-
-const kategori = ref([]);
-const tabelKategoriAda = ref(false);
-
-// Daftar unit (LKSA / TPQ) baru tersedia setelah
-// supabase/unit_lembaga.sql dijalankan. Selama belum, pilihan unit
-// cukup tidak ditampilkan dan galeri tetap berfungsi seperti biasa.
-const units = ref([]);
+const groups = ref(DEFAULT_GROUPS);
+const groupsAvailable = ref(false);
+const filterUnit = ref("Semua");
+const unitFilters = computed(() => [{ slug: "Semua", name: "Semua" }, ...groups.value]);
+const showGroups = ref(false);
+const groupName = ref("");
+const editingGroup = ref(null);
+const deletingGroup = ref(null);
+const groupBusy = ref(false);
+const groupError = ref("");
+async function loadGroups() {
+  try {
+    const result = await getGalleryGroups();
+    groups.value = result.groups;
+    groupsAvailable.value = result.available;
+  } catch (error) { listErrorMessage.value = "Gagal memuat kelompok anak: " + error.message; }
+}
+async function saveGroup() {
+  const name = groupName.value.trim();
+  if (!name || groupBusy.value) return;
+  if (name.toLowerCase() === "semua" || groups.value.some(g => g.slug !== editingGroup.value?.slug && g.name.toLowerCase() === name.toLowerCase())) {
+    groupError.value = "Nama kelompok sudah dipakai atau merupakan pilihan Semua."; return;
+  }
+  groupBusy.value = true; groupError.value = "";
+  try {
+    const result = editingGroup.value
+      ? await supabase.from("gallery_groups").update({ name }).eq("slug", editingGroup.value.slug).select()
+      : await supabase.from("gallery_groups").insert({ name, slug: "group-" + crypto.randomUUID() }).select();
+    if (result.error) throw result.error;
+    if (!result.data?.length) throw new Error("Perubahan tidak tersimpan. Periksa sesi admin.");
+    editingGroup.value = null; groupName.value = "";
+    await loadGroups();
+  } catch (error) { groupError.value = error.message; }
+  finally { groupBusy.value = false; }
+}
+async function deleteGroup() {
+  if (!deletingGroup.value || groupBusy.value) return;
+  groupBusy.value = true; groupError.value = "";
+  try {
+    const { data, error } = await supabase.from("gallery_groups").delete().eq("slug", deletingGroup.value.slug).select();
+    if (error) throw error;
+    if (!data?.length) throw new Error("Kelompok tidak terhapus. Periksa sesi admin.");
+    if (filterUnit.value === deletingGroup.value.slug) filterUnit.value = "Semua";
+    if (editingGroup.value?.slug === deletingGroup.value.slug) { editingGroup.value = null; groupName.value = ""; }
+    await loadGroups();
+  } catch (error) { groupError.value = error.message; }
+  finally { groupBusy.value = false; deletingGroup.value = null; }
+}
 
 const gallery = ref([]);
 const loading = ref(true);
@@ -48,17 +82,9 @@ const listErrorMessage = ref("");
 const selectedImageFile = ref(null);
 const imagePreviewUrl = ref("");
 
-// Penyaring tampilan daftar, membantu saat foto sudah banyak.
-// TANPA_KATEGORI adalah penanda buatan, bukan nama kategori sungguhan -
-// dipakai supaya foto yang belum dikelompokkan tetap bisa ditemukan.
-const TANPA_KATEGORI = "__tanpa_kategori";
-
-const filterKategori = ref("Semua");
-
 const form = reactive({
   image_url: "",
   alt_text: "",
-  category: "",
   unit: "",
 });
 
@@ -71,322 +97,8 @@ const revokePreview = () => {
 
 onBeforeUnmount(revokePreview);
 
-const daftarFilter = computed(() => {
-  const adaDiData = new Set(
-    gallery.value.map((item) => item.category).filter(Boolean),
-  );
-
-  // Urutannya mengikuti pengaturan pengurus. Kategori yang belum punya foto
-  // tidak ditampilkan supaya tidak ada tombol penyaring yang selalu kosong.
-  const terurut = namaKategori.value.filter((nama) => adaDiData.has(nama));
-
-  // Nilai lama yang tidak ada di daftar kategori tetap tampil, agar fotonya
-  // tidak menjadi tidak terjangkau.
-  const sisa = [...adaDiData].filter((nama) => !terurut.includes(nama));
-
-  // Diletakkan paling belakang, dan hanya bila memang ada fotonya
-  const tanpa = gallery.value.some((item) => !item.category)
-    ? [TANPA_KATEGORI]
-    : [];
-
-  return ["Semua", ...terurut, ...sisa, ...tanpa];
-});
-
-// Pilihan pada form foto. Kategori lama yang tidak ada di daftar tetap
-// disertakan supaya foto tidak diam-diam kehilangan kategorinya saat disimpan.
-const pilihanUnitFoto = computed(() => pilihanUnit(units.value));
-
-const pilihanKategori = computed(() => {
-  const gabungan = new Set(namaKategori.value);
-
-  if (form.category) gabungan.add(form.category);
-
-  return [...gabungan];
-});
-
-const galeriTersaring = computed(() => {
-  if (filterKategori.value === "Semua") return gallery.value;
-
-  if (filterKategori.value === TANPA_KATEGORI) {
-    return gallery.value.filter((item) => !item.category);
-  }
-
-  return gallery.value.filter((item) => item.category === filterKategori.value);
-});
-
-const jumlahTanpaKategori = computed(
-  () => gallery.value.filter((item) => !item.category).length,
-);
-
-// Penanda buatan perlu diterjemahkan sebelum ditampilkan sebagai tombol
-const labelFilter = (nama) => (nama === TANPA_KATEGORI ? "Lainnya" : nama);
-
-/* =========================
-   KATEGORI
-
-   Kategori disimpan pada tabelnya sendiri agar pengurus bisa menambah,
-   mengubah nama, menghapus, dan mengurutkannya. Nama kategori tetap ikut
-   tersimpan sebagai teks pada tiap foto, jadi mengubah nama kategori berarti
-   ikut memperbarui seluruh foto yang memakainya.
-========================= */
-
-const showKategoriModal = ref(false);
-const kategoriBaru = ref("");
-const kategoriDiubah = ref(null);
-const namaDiubah = ref("");
-const kategoriSibuk = ref(false);
-const kategoriPesan = ref("");
-const kategoriDihapus = ref(null);
-const memindahKategori = ref(false);
-
-const tabelHilang = (error) =>
-  error?.code === "PGRST205" || error?.code === "42P01";
-
-const getKategori = async () => {
-  const { data, error } = await supabase
-    .from("gallery_categories")
-    .select("*")
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
-
-  if (error) {
-    if (tabelHilang(error)) {
-      // Belum diaktifkan: pakai daftar bawaan, dan sembunyikan tombol
-      // pengelolaan supaya pengurus tidak menekan tombol yang pasti gagal.
-      tabelKategoriAda.value = false;
-      kategori.value = KATEGORI_BAWAAN.map((nama, i) => ({
-        id: `bawaan-${i}`,
-        name: nama,
-      }));
-      return;
-    }
-
-    console.error("Gagal mengambil kategori galeri:", error);
-    return;
-  }
-
-  tabelKategoriAda.value = true;
-  kategori.value = data || [];
-};
-
-const namaKategori = computed(() => kategori.value.map((k) => k.name));
-
-// Berapa foto yang memakai satu kategori. Dipakai untuk menjelaskan dampaknya
-// sebelum kategori diubah namanya atau dihapus.
-const jumlahFoto = (nama) =>
-  gallery.value.filter((item) => item.category === nama).length;
-
-const sudahDipakai = (nama, kecualiId = null) =>
-  kategori.value.some(
-    (k) =>
-      k.id !== kecualiId &&
-      k.name.trim().toLowerCase() === nama.trim().toLowerCase(),
-  );
-
-const bukaKategoriModal = () => {
-  kategoriPesan.value = "";
-  kategoriBaru.value = "";
-  kategoriDiubah.value = null;
-  showKategoriModal.value = true;
-};
-
-const tutupKategoriModal = () => {
-  if (kategoriSibuk.value) return;
-
-  showKategoriModal.value = false;
-  kategoriDiubah.value = null;
-  kategoriPesan.value = "";
-};
-
-const tambahKategori = async () => {
-  const nama = kategoriBaru.value.trim();
-
-  if (!nama || kategoriSibuk.value) return;
-
-  if (sudahDipakai(nama)) {
-    kategoriPesan.value = `Kategori "${nama}" sudah ada.`;
-    return;
-  }
-
-  kategoriSibuk.value = true;
-  kategoriPesan.value = "";
-
-  try {
-    const urutanTerakhir = kategori.value.length
-      ? Math.max(...kategori.value.map((k) => k.sort_order ?? 0))
-      : 0;
-
-    const { error } = await supabase
-      .from("gallery_categories")
-      .insert({ name: nama, sort_order: urutanTerakhir + 1 });
-
-    if (error) throw error;
-
-    kategoriBaru.value = "";
-
-    await getKategori();
-
-    successMessage.value = `Kategori "${nama}" berhasil ditambahkan.`;
-  } catch (error) {
-    console.error("Gagal menambah kategori:", error);
-    kategoriPesan.value = error.message || "Gagal menambah kategori.";
-  } finally {
-    kategoriSibuk.value = false;
-  }
-};
-
-const mulaiUbahKategori = (item) => {
-  kategoriDiubah.value = item;
-  namaDiubah.value = item.name;
-  kategoriPesan.value = "";
-};
-
-const simpanUbahKategori = async () => {
-  const item = kategoriDiubah.value;
-  const namaBaru = namaDiubah.value.trim();
-
-  if (!item || !namaBaru || kategoriSibuk.value) return;
-
-  if (namaBaru === item.name) {
-    kategoriDiubah.value = null;
-    return;
-  }
-
-  if (sudahDipakai(namaBaru, item.id)) {
-    kategoriPesan.value = `Kategori "${namaBaru}" sudah ada.`;
-    return;
-  }
-
-  kategoriSibuk.value = true;
-  kategoriPesan.value = "";
-
-  try {
-    const terdampak = jumlahFoto(item.name);
-
-    const { error } = await supabase
-      .from("gallery_categories")
-      .update({ name: namaBaru })
-      .eq("id", item.id);
-
-    if (error) throw error;
-
-    // Nama kategori juga tersimpan di tiap foto, jadi harus ikut diperbarui.
-    // Tanpa langkah ini, foto lama menggantung pada kategori yang namanya
-    // sudah tidak ada lagi.
-    const { error: errorFoto } = await supabase
-      .from("gallery")
-      .update({ category: namaBaru })
-      .eq("category", item.name);
-
-    if (errorFoto) throw errorFoto;
-
-    // Penyaring daftar ikut disesuaikan supaya tampilan tidak mendadak kosong
-    if (filterKategori.value === item.name) {
-      filterKategori.value = namaBaru;
-    }
-
-    kategoriDiubah.value = null;
-
-    await Promise.all([getKategori(), getGallery()]);
-
-    successMessage.value = terdampak
-      ? `Kategori diubah menjadi "${namaBaru}". ${terdampak} foto ikut diperbarui.`
-      : `Kategori berhasil diubah menjadi "${namaBaru}".`;
-  } catch (error) {
-    console.error("Gagal mengubah kategori:", error);
-    kategoriPesan.value = error.message || "Gagal mengubah kategori.";
-  } finally {
-    kategoriSibuk.value = false;
-  }
-};
-
-const hapusKategori = async () => {
-  const item = kategoriDihapus.value;
-
-  if (!item || kategoriSibuk.value) return;
-
-  kategoriSibuk.value = true;
-  kategoriPesan.value = "";
-
-  try {
-    const terdampak = jumlahFoto(item.name);
-
-    // Fotonya sendiri tidak ikut dihapus - hanya kehilangan kategorinya,
-    // sehingga masuk ke kelompok "Umum". Ikut menghapus foto hanya karena
-    // kategorinya dihapus akan terasa seperti kehilangan data.
-    if (terdampak) {
-      const { error: errorFoto } = await supabase
-        .from("gallery")
-        .update({ category: null })
-        .eq("category", item.name);
-
-      if (errorFoto) throw errorFoto;
-    }
-
-    const { error } = await supabase
-      .from("gallery_categories")
-      .delete()
-      .eq("id", item.id);
-
-    if (error) throw error;
-
-    if (filterKategori.value === item.name) {
-      filterKategori.value = "Semua";
-    }
-
-    await Promise.all([getKategori(), getGallery()]);
-
-    successMessage.value = terdampak
-      ? `Kategori "${item.name}" dihapus. ${terdampak} foto kini tanpa kategori.`
-      : `Kategori "${item.name}" berhasil dihapus.`;
-  } catch (error) {
-    console.error("Gagal menghapus kategori:", error);
-    kategoriPesan.value = error.message || "Gagal menghapus kategori.";
-  } finally {
-    kategoriSibuk.value = false;
-    kategoriDihapus.value = null;
-  }
-};
-
-const pindahKategori = async (index, arah) => {
-  const tujuan = index + arah;
-
-  if (memindahKategori.value) return;
-  if (tujuan < 0 || tujuan >= kategori.value.length) return;
-
-  memindahKategori.value = true;
-  kategoriPesan.value = "";
-
-  // Tukar posisi di tampilan lebih dulu supaya terasa cepat
-  const salinan = [...kategori.value];
-  [salinan[index], salinan[tujuan]] = [salinan[tujuan], salinan[index]];
-  kategori.value = salinan;
-
-  try {
-    const hasil = await Promise.all(
-      salinan.map((item, i) =>
-        supabase
-          .from("gallery_categories")
-          .update({ sort_order: i + 1 })
-          .eq("id", item.id),
-      ),
-    );
-
-    const gagal = hasil.find((r) => r.error);
-
-    if (gagal) throw gagal.error;
-
-    await getKategori();
-  } catch (error) {
-    console.error("Gagal mengubah urutan kategori:", error);
-    kategoriPesan.value = error.message || "Gagal mengubah urutan.";
-
-    // Kembalikan ke keadaan sebenarnya di database
-    await getKategori();
-  } finally {
-    memindahKategori.value = false;
-  }
-};
+const pilihanUnitFoto = computed(() => groups.value.map(g => ({ value: g.slug, label: g.name })));
+const galeriTersaring = computed(() => gallery.value.filter(item => matchesGalleryGroup(item, filterUnit.value)));
 
 /* =========================
    FOTO
@@ -467,7 +179,6 @@ const getGallery = async () => {
 const resetForm = () => {
   form.image_url = "";
   form.alt_text = "";
-  form.category = "";
   form.unit = "";
   selectedImageFile.value = null;
   revokePreview();
@@ -487,8 +198,7 @@ const openEditModal = (item) => {
 
   form.image_url = item.image_url || "";
   form.alt_text = item.alt_text || "";
-  form.category = item.category || "";
-  form.unit = item.unit || "";
+  form.unit = galleryGroup(item);
 
   selectedImageFile.value = null;
   revokePreview();
@@ -524,6 +234,7 @@ const saveGallery = async () => {
       return;
     }
 
+    if (!pilihanUnitFoto.value.some(group => group.value === form.unit)) throw new Error("Pilih kelompok anak yang tersedia terlebih dahulu.");
     let uploadedImageUrl = form.image_url;
 
     if (selectedImageFile.value) {
@@ -533,14 +244,11 @@ const saveGallery = async () => {
     const payload = {
       image_url: uploadedImageUrl,
       alt_text: form.alt_text.trim(),
-      category: form.category || null,
     };
 
     // Kolom unit baru ada setelah supabase/unit_lembaga.sql dijalankan.
     // Menyertakannya sebelum itu akan ditolak Supabase (PGRST204).
-    if (units.value.length) {
-      payload.unit = form.unit || null;
-    }
+    payload.unit = form.unit;
 
     let result;
 
@@ -623,15 +331,15 @@ const deleteGallery = async () => {
 
 onMounted(async () => {
   getGallery();
-  getKategori();
-  units.value = await getUnits();
+  loadGroups();
+
 });
 </script>
 
 <template>
   <AdminPage
-    title="Galeri Foto"
-    description="Kumpulan foto kegiatan dan keseharian anak-anak. Delapan foto pertama juga tampil di halaman depan."
+    title="Galeri Anak"
+    description="Kelola foto dan keterangan anak-anak binaan berdasarkan kelompoknya. Delapan foto pertama juga tampil di halaman depan."
     public-path="/galeri"
     wide
   >
@@ -654,14 +362,8 @@ onMounted(async () => {
         </p>
 
         <div class="flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            @click="bukaKategoriModal"
-            class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-          >
-            <Tags class="h-4 w-4" />
-            Kelola Kategori
-          </button>
+          <button type="button" @click="showGroups = true" class="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Kelola Kelompok Anak</button>
+
 
           <button
             type="button"
@@ -684,24 +386,12 @@ onMounted(async () => {
       "
     />
 
-    <!-- Penyaring kategori -->
-    <div v-if="daftarFilter.length > 1" class="mb-5 flex flex-wrap gap-2">
-      <button
-        v-for="kategori in daftarFilter"
-        :key="kategori"
-        type="button"
-        @click="filterKategori = kategori"
-        class="rounded-full px-4 py-2 text-sm font-semibold transition"
-        :class="
-          filterKategori === kategori
-            ? 'bg-emerald-600 text-white'
-            : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'
-        "
-      >
-        {{ labelFilter(kategori) }}
-      </button>
+    <div class="mb-5 flex flex-wrap gap-2" aria-label="Kelompok anak">
+      <button v-for="unit in unitFilters" :key="unit.slug" type="button"
+        @click="filterUnit = unit.slug" :aria-pressed="filterUnit === unit.slug"
+        class="rounded-full px-4 py-2 text-sm font-semibold"
+        :class="filterUnit === unit.slug ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'">{{ unit.name }}</button>
     </div>
-
     <!-- MEMUAT -->
     <div
       v-if="loading"
@@ -737,7 +427,7 @@ onMounted(async () => {
       v-else-if="galeriTersaring.length === 0"
       class="rounded-2xl border border-gray-200 bg-white p-12 text-center text-sm text-gray-500"
     >
-      Belum ada foto pada kategori "{{ labelFilter(filterKategori) }}".
+      Belum ada foto untuk kelompok {{ filterUnit }}.
     </div>
 
     <!-- DAFTAR -->
@@ -758,10 +448,10 @@ onMounted(async () => {
 
         <div class="flex flex-1 flex-col p-4">
           <span
-            v-if="item.category"
+            v-if="galleryGroupLabel(item, groups)"
             class="self-start rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700"
           >
-            {{ item.category }}
+            {{ galleryGroupLabel(item, groups) }}
           </span>
 
           <h2 class="mt-2 line-clamp-2 flex-1 text-sm font-bold text-gray-900">
@@ -865,29 +555,16 @@ onMounted(async () => {
             />
           </AdminField>
 
-          <AdminField
-            v-slot="{ id }"
-            label="Kategori"
-            hint="Dipakai pengunjung untuk menyaring foto di halaman galeri. Daftar pilihannya diatur lewat tombol Kelola Kategori."
-          >
-            <select :id="id" v-model="form.category" class="admin-select">
-              <option value="">
-                Tanpa kategori — tampil di kelompok "Lainnya"
-              </option>
 
-              <option v-for="k in pilihanKategori" :key="k" :value="k">
-                {{ k }}
-              </option>
-            </select>
-          </AdminField>
 
           <AdminField
             v-if="pilihanUnitFoto.length"
             v-slot="{ id }"
-            label="Unit"
-            hint="Kegiatan pada foto ini milik unit yang mana."
+            label="Kelompok anak"
+            required
+            hint="Pilih kelompok anak. Pilihan ini menentukan filter foto di galeri."
           >
-            <select :id="id" v-model="form.unit" class="admin-select">
+            <select :id="id" v-model="form.unit" required class="admin-select">
               <option value="">Belum ditentukan</option>
 
               <option
@@ -928,268 +605,32 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- =========================================================
-         KELOLA KATEGORI
-    ========================================================== -->
-    <div
-      v-if="showKategoriModal"
-      class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-6"
-      @click.self="tutupKategoriModal"
-    >
-      <div
-        class="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white sm:rounded-3xl"
-      >
-        <div
-          class="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-gray-100 bg-white px-6 py-5"
-        >
-          <div>
-            <h2 class="text-xl font-bold text-gray-900">Kelola Kategori</h2>
-
-            <p class="mt-1 text-sm text-gray-500">
-              Kelompok foto yang bisa dipilih pengunjung di halaman galeri.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            @click="tutupKategoriModal"
-            aria-label="Tutup"
-            class="-mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
-          >
-            ×
-          </button>
+    <div v-if="showGroups" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-5" @click.self="!groupBusy && (showGroups = false)">
+      <section role="dialog" aria-modal="true" aria-labelledby="groups-title" class="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-6">
+        <div class="flex items-center justify-between gap-4">
+          <h2 id="groups-title" class="text-xl font-bold">Kelola Kelompok Anak</h2>
+          <button type="button" :disabled="groupBusy" @click="showGroups = false" aria-label="Tutup" class="p-2">&#215;</button>
         </div>
-
-        <div class="space-y-5 px-6 py-6">
-          <!-- Tabel belum dibuat -->
-          <div
-            v-if="!tabelKategoriAda"
-            class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4"
-          >
-            <p class="text-sm font-semibold text-amber-900">
-              Pengelolaan kategori belum diaktifkan
-            </p>
-
-            <p class="mt-1 text-sm leading-6 text-amber-800">
-              Galeri tetap berjalan normal memakai empat kategori bawaan, hanya
-              daftarnya belum bisa diubah sendiri.
-            </p>
-
-            <p class="mt-2 text-sm leading-6 text-amber-800">
-              Untuk mengaktifkannya, minta pengelola teknis menjalankan berkas
-              <code
-                class="rounded bg-amber-100 px-1.5 py-0.5 font-mono text-xs"
-              >
-                supabase/gallery_categories.sql
-              </code>
-              pada menu SQL Editor di Supabase. Cukup dilakukan satu kali.
-            </p>
-          </div>
-
-          <template v-else>
-            <AdminAlert :error="kategoriPesan" @dismiss="kategoriPesan = ''" />
-
-            <!-- Tambah kategori -->
-            <form
-              class="flex flex-col gap-2 sm:flex-row"
-              @submit.prevent="tambahKategori"
-            >
-              <input
-                v-model="kategoriBaru"
-                type="text"
-                placeholder="Nama kategori baru, misalnya Rekreasi"
-                maxlength="30"
-                class="admin-input flex-1"
-              />
-
-              <button
-                type="submit"
-                :disabled="!kategoriBaru.trim() || kategoriSibuk"
-                class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Plus class="h-4 w-4" />
-                Tambah
-              </button>
-            </form>
-
-            <!-- Daftar kategori -->
-            <div
-              v-if="kategori.length === 0"
-              class="rounded-2xl border border-dashed border-gray-300 p-8 text-center"
-            >
-              <p class="font-semibold text-gray-900">Belum ada kategori</p>
-
-              <p class="mx-auto mt-2 max-w-xs text-sm leading-6 text-gray-500">
-                Tambahkan lewat kolom di atas. Contoh: Pendidikan, Keagamaan,
-                Rekreasi.
-              </p>
-            </div>
-
-            <ul v-else class="space-y-2">
-              <li
-                v-for="(item, index) in kategori"
-                :key="item.id"
-                class="flex items-center gap-3 rounded-2xl border border-gray-200 p-3"
-              >
-                <!-- Urutan tampil di halaman galeri -->
-                <div class="flex shrink-0 flex-col gap-1">
-                  <button
-                    type="button"
-                    :disabled="index === 0 || memindahKategori"
-                    @click="pindahKategori(index, -1)"
-                    aria-label="Pindahkan ke atas"
-                    class="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    <ChevronUp class="h-4 w-4" />
-                  </button>
-
-                  <button
-                    type="button"
-                    :disabled="
-                      index === kategori.length - 1 || memindahKategori
-                    "
-                    @click="pindahKategori(index, 1)"
-                    aria-label="Pindahkan ke bawah"
-                    class="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    <ChevronDown class="h-4 w-4" />
-                  </button>
-                </div>
-
-                <!-- Sedang diubah namanya -->
-                <template v-if="kategoriDiubah?.id === item.id">
-                  <input
-                    v-model="namaDiubah"
-                    type="text"
-                    maxlength="30"
-                    class="admin-input flex-1"
-                    @keydown.enter.prevent="simpanUbahKategori"
-                    @keydown.esc="kategoriDiubah = null"
-                  />
-
-                  <button
-                    type="button"
-                    :disabled="kategoriSibuk"
-                    @click="simpanUbahKategori"
-                    class="shrink-0 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
-                  >
-                    {{ kategoriSibuk ? "..." : "Simpan" }}
-                  </button>
-
-                  <button
-                    type="button"
-                    :disabled="kategoriSibuk"
-                    @click="kategoriDiubah = null"
-                    class="shrink-0 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
-                  >
-                    Batal
-                  </button>
-                </template>
-
-                <!-- Tampilan biasa -->
-                <template v-else>
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate font-semibold text-gray-900">
-                      {{ item.name }}
-                    </p>
-
-                    <p class="text-xs text-gray-500">
-                      {{
-                        jumlahFoto(item.name)
-                          ? `${jumlahFoto(item.name)} foto`
-                          : "Belum dipakai foto mana pun"
-                      }}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    @click="mulaiUbahKategori(item)"
-                    aria-label="Ubah nama kategori"
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-                  >
-                    <Pencil class="h-4 w-4" />
-                  </button>
-
-                  <button
-                    type="button"
-                    @click="kategoriDihapus = item"
-                    aria-label="Hapus kategori"
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                  >
-                    <Trash2 class="h-4 w-4" />
-                  </button>
-                </template>
-              </li>
-            </ul>
-
-            <!-- Kelompok bawaan: foto yang belum diberi kategori.
-                 Terbentuk sendiri, jadi tidak bisa diubah atau dihapus -
-                 ditampilkan agar pengurus tahu masih ada foto yang
-                 belum dikelompokkan. -->
-            <div
-              class="flex items-center gap-3 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-3"
-            >
-              <div class="min-w-0 flex-1">
-                <p class="font-semibold text-gray-700">Tanpa kategori</p>
-
-                <p class="text-xs leading-5 text-gray-500">
-                  {{
-                    jumlahTanpaKategori
-                      ? `${jumlahTanpaKategori} foto`
-                      : "Tidak ada foto"
-                  }}
-                  — tampil sebagai "Lainnya" di halaman galeri
-                </p>
-              </div>
-
-              <button
-                type="button"
-                @click="
-                  filterKategori = TANPA_KATEGORI;
-                  tutupKategoriModal();
-                "
-                :disabled="!jumlahTanpaKategori"
-                class="shrink-0 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Lihat
-              </button>
-            </div>
-
-            <p class="text-xs leading-5 text-gray-500">
-              Mengubah nama kategori akan ikut memperbarui seluruh foto yang
-              memakainya. Urutan di atas menentukan urutan tombol penyaring di
-              halaman galeri.
-            </p>
-          </template>
-
-          <button
-            type="button"
-            @click="tutupKategoriModal"
-            :disabled="kategoriSibuk"
-            class="w-full rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
-          >
-            Selesai
-          </button>
-        </div>
-      </div>
+        <p class="mt-3 text-sm text-gray-600">Kelompok digunakan pada formulir foto dan filter galeri. Menghapus kelompok tidak menghapus fotonya; foto tetap ada di Semua.</p>
+        <p v-if="!groupsAvailable" class="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Jalankan supabase/gallery_group_management.sql di Supabase SQL Editor untuk mengaktifkan pengelolaan kelompok.</p>
+        <AdminAlert class="mt-4" :error="groupError" @dismiss="groupError = ''" />
+        <form class="my-5 flex gap-2" @submit.prevent="saveGroup">
+          <input v-model="groupName" aria-label="Nama kelompok" required maxlength="60" placeholder="Nama kelompok anak" class="admin-input min-w-0 flex-1" :disabled="groupBusy || !groupsAvailable" />
+          <button class="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white disabled:opacity-50" :disabled="groupBusy || !groupsAvailable">{{ editingGroup ? 'Simpan' : 'Tambah' }}</button>
+          <button v-if="editingGroup" type="button" :disabled="groupBusy" @click="editingGroup = null; groupName = ''">Batal</button>
+        </form>
+        <ul class="space-y-3">
+          <li v-for="group in groups" :key="group.slug" class="flex items-center gap-3 rounded-xl border border-gray-200 p-3">
+            <span class="flex-1 font-semibold">{{ group.name }}</span>
+            <button type="button" :disabled="groupBusy || !groupsAvailable" @click="editingGroup = group; groupName = group.name" class="text-emerald-700 disabled:opacity-50">Ubah</button>
+            <button type="button" :disabled="groupBusy || !groupsAvailable" @click="deletingGroup = group" class="text-red-600 disabled:opacity-50">Hapus</button>
+          </li>
+        </ul>
+      </section>
     </div>
-
-    <!-- KONFIRMASI HAPUS KATEGORI -->
-    <AdminConfirm
-      :open="Boolean(kategoriDihapus)"
-      danger
-      :busy="kategoriSibuk"
-      title="Hapus kategori ini?"
-      :message="
-        jumlahFoto(kategoriDihapus?.name)
-          ? `Kategori &quot;${kategoriDihapus?.name}&quot; akan dihapus. ${jumlahFoto(kategoriDihapus?.name)} foto yang memakainya TIDAK ikut terhapus, hanya berpindah menjadi tanpa kategori.`
-          : `Kategori &quot;${kategoriDihapus?.name || ''}&quot; akan dihapus dari daftar pilihan. Belum ada foto yang memakainya.`
-      "
-      confirm-label="Ya, hapus"
-      @confirm="hapusKategori"
-      @cancel="kategoriDihapus = null"
-    />
+    <AdminConfirm :open="Boolean(deletingGroup)" danger :busy="groupBusy" title="Hapus kelompok anak?"
+      :message="`Kelompok ${deletingGroup?.name || ''} akan dihapus. Foto tetap tersimpan dan dapat ditemukan melalui Semua.`"
+      confirm-label="Ya, hapus" @confirm="deleteGroup" @cancel="deletingGroup = null" />
 
     <!-- KONFIRMASI HAPUS -->
     <AdminConfirm

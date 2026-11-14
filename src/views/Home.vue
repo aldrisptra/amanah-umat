@@ -372,7 +372,7 @@ onMounted(() => {
                 :src="program.image_url"
                 :alt="program.title"
                 loading="lazy"
-                class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                class="h-full w-full bg-gray-50 object-contain"
               />
             </div>
 
@@ -439,11 +439,11 @@ onMounted(() => {
             <span
               class="text-sm font-semibold uppercase tracking-wider text-emerald-600"
             >
-              Galeri
+              Galeri Anak
             </span>
 
             <h2 class="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">
-              Momen bersama anak-anak
+              Mengenal anak-anak Amanah Ummat
             </h2>
           </div>
 

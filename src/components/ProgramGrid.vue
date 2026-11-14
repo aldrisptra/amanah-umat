@@ -52,7 +52,7 @@ const tandaUnit = (program) =>
           :src="program.image_url"
           :alt="program.title"
           loading="lazy"
-          class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+          class="h-full w-full bg-gray-50 object-contain"
         />
       </div>
 

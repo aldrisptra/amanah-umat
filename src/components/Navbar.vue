@@ -11,7 +11,7 @@ const MENU = [
   { to: "/", label: "Beranda" },
   { to: "/tentang-kami", label: "Tentang Kami" },
   { to: "/program", label: "Program" },
-  { to: "/galeri", label: "Galeri" },
+  { to: "/galeri", label: "Galeri Anak" },
   { to: "/prestasi", label: "Prestasi" },
   { to: "/kontak", label: "Kontak" },
 ];
